@@ -1,7 +1,7 @@
 # Field Jobs Dashboard — static demo with login concept
 
 A three-file static mockup for GitHub Pages. All data is fictional and lives in
-`data.js` — edit it to try your own.
+`data.js`.
 
 - `index.html` — demo login page. Pick a person, password is `demo`.
 - `dashboard.html` — the dashboard. PMs see only their own jobs; the Operations
@@ -25,14 +25,3 @@ never put real client names, addresses, or job data in this repo.
   scheduled). Quiet CARTO Voyager basemap — colored, but without POI icons and
   park/airport clutter.
 - Dark mode follows the OS setting.
-
-## Put it on GitHub Pages
-
-1. github.com → **+** → **New repository** → name it (e.g. `jobs-dashboard-demo`),
-   set **Public**, create.
-2. **uploading an existing file** → drag in `index.html`, `dashboard.html`,
-   `data.js`, `README.md` → **Commit changes**.
-3. **Settings → Pages** → Source: **Deploy from a branch** → `main`, `/ (root)` → **Save**.
-4. After ~1–2 minutes: `https://<your-username>.github.io/jobs-dashboard-demo/`.
-
-Edits republish automatically about a minute after each commit.
