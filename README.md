@@ -1,27 +1,38 @@
-# Field Jobs Dashboard — static demo
+# Field Jobs Dashboard — static demo with login concept
 
-A single-file, self-contained dashboard mockup for testing an online version of a
-company jobs dashboard: KPI tiles, a jobs-by-client row chart (small clients grouped
-into "Other"), a 2D Leaflet map of job locations, and a table view. All data is
-fictional and lives in the `JOBS` array at the top of the `<script>` block in
-`index.html` .
+A three-file static mockup for GitHub Pages. All data is fictional and lives in
+`data.js` — edit it to try your own.
 
-Steps for me
-1. Drag in `index.html` and `README.md` → **Commit changes**.
-2. Go to **Settings → Pages** (left sidebar). Under *Build and deployment*, set
-   **Source: Deploy from a branch**, **Branch: `main`**, folder **`/ (root)`** → **Save**.
-3. Wait ~1–2 minutes, refresh the Pages settings page, and the site is live at
-   `https://stevenp3com.github.io/jobs-dashboard-demo/`.
+- `index.html` — demo login page. Pick a person, password is `demo`.
+- `dashboard.html` — the dashboard. PMs see only their own jobs; the Operations
+  Manager sees everything plus a PM filter.
+- `data.js` — jobs, PM roster, and the fixed client color mapping.
 
-Any later edit to `index.html` (via the pencil icon on GitHub, or a git push)
-republishes automatically in about a minute.
+**This "login" is a front-end concept only — it is NOT security.** All the data
+ships to every visitor's browser and the URL can be edited by hand. It exists to
+demo what per-PM views would feel like; a real deployment gets this from a BI
+tool's server-side permissions (e.g., Metabase sandboxing). For the same reason,
+never put real client names, addresses, or job data in this repo.
 
-## Notes
+## Dashboard features
 
-- Charts are hand-rolled HTML/CSS (no chart library); the map is
-  [Leaflet](https://leafletjs.com) + OpenStreetMap tiles from CDNs, so an
-  internet connection is required to see the map.
-- Dark mode follows the OS setting automatically.
-- The date-range and status filters scope the tiles, chart, map, and table together.
-- This mockup has no authentication — it demos visuals only, not the per-user
-  permissions a real BI tool (e.g., Metabase) would provide.
+- KPI tiles, jobs-by-client row chart (clients with < 5 jobs grouped into "Other"),
+  and a table view — all scoped by the shared filter row (date range, status,
+  client toggle chips; PM filter for the manager).
+- Map: pin **fill color = client** (the four largest clients get their own color,
+  the rest share gray — a fifth hue fails colorblind-separation checks), pin
+  **border color = status** (amber = in progress, green = completed, gray =
+  scheduled). Quiet CARTO Voyager basemap — colored, but without POI icons and
+  park/airport clutter.
+- Dark mode follows the OS setting.
+
+## Put it on GitHub Pages
+
+1. github.com → **+** → **New repository** → name it (e.g. `jobs-dashboard-demo`),
+   set **Public**, create.
+2. **uploading an existing file** → drag in `index.html`, `dashboard.html`,
+   `data.js`, `README.md` → **Commit changes**.
+3. **Settings → Pages** → Source: **Deploy from a branch** → `main`, `/ (root)` → **Save**.
+4. After ~1–2 minutes: `https://<your-username>.github.io/jobs-dashboard-demo/`.
+
+Edits republish automatically about a minute after each commit.

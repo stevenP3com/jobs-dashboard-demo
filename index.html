@@ -3,481 +3,118 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Field Jobs Dashboard — Demo</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<title>Sign in — Field Jobs Dashboard (Demo)</title>
 <style>
   :root {
-    --surface-1: #fcfcfb;      /* card / chart surface */
-    --page:      #f9f9f7;
-    --text-primary:   #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted:     #898781;
-    --grid:      #e1e0d9;
-    --baseline:  #c3c2b7;
-    --border:    rgba(11,11,11,0.10);
-    --series-1:  #2a78d6;      /* jobs bar + In Progress */
-    --status-good: #0ca30c;    /* Completed */
-    --neutral:   #898781;      /* Other bucket + Scheduled */
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+    --border: rgba(11,11,11,0.10); --accent: #2a78d6; --danger: #d03b3b;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --surface-1: #1a1a19;
-      --page:      #0d0d0d;
-      --text-primary:   #ffffff;
-      --text-secondary: #c3c2b7;
-      --text-muted:     #898781;
-      --grid:      #2c2c2a;
-      --baseline:  #383835;
-      --border:    rgba(255,255,255,0.10);
-      --series-1:  #3987e5;
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7;
+      --border: rgba(255,255,255,0.10); --accent: #3987e5;
     }
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--page); color: var(--text-primary);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    font-size: 14px; line-height: 1.45;
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: var(--page); color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 14px;
   }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 20px 48px; }
-
-  header.page { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
-  header.page h1 { font-size: 20px; font-weight: 650; margin: 0; }
-  .badge {
-    font-size: 11px; font-weight: 600; letter-spacing: .02em;
-    color: var(--text-secondary); border: 1px solid var(--border);
-    border-radius: 99px; padding: 2px 10px; background: var(--surface-1);
-  }
-  .subtitle { color: var(--text-muted); margin: 0 0 18px; }
-
-  /* Filter row — one row, above everything it scopes */
-  .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
-  .filters label { color: var(--text-secondary); font-size: 12.5px; }
-  .filters select {
-    font: inherit; font-size: 13px; color: var(--text-primary);
-    background: var(--surface-1); border: 1px solid var(--border);
-    border-radius: 8px; padding: 6px 10px;
-  }
-
-  /* KPI row */
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
-  .tile {
-    background: var(--surface-1); border: 1px solid var(--border);
-    border-radius: 12px; padding: 12px 14px;
-  }
-  .tile .label { font-size: 12px; color: var(--text-secondary); }
-  .tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
-  .tile .hint { font-size: 11.5px; color: var(--text-muted); }
-
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
-
   .card {
+    width: min(420px, calc(100vw - 32px));
     background: var(--surface-1); border: 1px solid var(--border);
-    border-radius: 12px; padding: 14px 16px 16px; margin-bottom: 12px;
+    border-radius: 14px; padding: 26px 26px 22px; margin: 24px 0;
   }
-  .card h2 { font-size: 14px; font-weight: 650; margin: 0 0 2px; }
-  .card .sub { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
-
-  /* Row chart */
-  .bar-row {
-    display: grid; grid-template-columns: 168px 1fr 44px;
-    align-items: center; gap: 8px; padding: 4px 0; border-radius: 6px; outline: none;
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  .sub { color: var(--text-muted); font-size: 12.5px; margin: 0 0 18px; }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 99px; padding: 1px 9px; margin-left: 6px; vertical-align: 2px;
   }
-  .bar-row:hover .bar, .bar-row:focus-visible .bar { filter: brightness(1.12); }
-  .bar-row:focus-visible { box-shadow: 0 0 0 2px var(--series-1); }
-  .bar-label {
-    font-size: 12.5px; color: var(--text-secondary); text-align: right;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .users { display: grid; gap: 8px; margin-bottom: 16px; }
+  .user {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    text-align: left; font: inherit; color: var(--text-primary);
+    background: none; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; cursor: pointer;
   }
-  .bar-track { position: relative; height: 20px; }
-  .bar {
-    position: absolute; left: 0; top: 0; bottom: 0;
-    background: var(--series-1); border-radius: 0 4px 4px 0; /* rounded data-end, square baseline */
-    min-width: 3px;
+  .user:hover { border-color: var(--accent); }
+  .user.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent); color: #fff; font-weight: 650; font-size: 13px; flex: none;
   }
-  .bar.other { background: var(--neutral); }
-  .bar-value { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-  .chart-axis {
-    display: grid; grid-template-columns: 168px 1fr 44px; gap: 8px; margin-top: 6px;
-    color: var(--text-muted); font-size: 11px;
+  .user .who { line-height: 1.25; }
+  .user .role { color: var(--text-muted); font-size: 12px; }
+  label { display: block; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 4px; }
+  input[type=password] {
+    width: 100%; font: inherit; color: var(--text-primary);
+    background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;
   }
-  .chart-axis .rule { border-top: 1px solid var(--baseline); padding-top: 3px; }
-
-  /* Map */
-  #map { height: 380px; border-radius: 8px; }
-  .map-legend { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
-  .key-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
-
-  /* Table */
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--text-muted); font-weight: 600; font-size: 12px;
-       border-bottom: 1px solid var(--baseline); padding: 6px 8px; }
-  td { border-bottom: 1px solid var(--grid); padding: 6px 8px; color: var(--text-secondary); }
-  td.job-id { color: var(--text-primary); font-variant-numeric: tabular-nums; }
-  td.date { font-variant-numeric: tabular-nums; }
-  .status { white-space: nowrap; }
-
-  /* Tooltip */
-  #tooltip {
-    position: fixed; pointer-events: none; z-index: 1000; display: none;
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
-    box-shadow: 0 4px 14px rgba(0,0,0,.14); padding: 8px 10px; max-width: 260px; font-size: 12.5px;
+  .hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .error { color: var(--danger); font-size: 12.5px; margin-top: 8px; display: none; }
+  button.go {
+    width: 100%; margin-top: 14px; font: inherit; font-weight: 600; color: #fff;
+    background: var(--accent); border: none; border-radius: 10px; padding: 10px; cursor: pointer;
   }
-  #tooltip .tt-value { font-size: 15px; font-weight: 650; color: var(--text-primary); }
-  #tooltip .tt-label { color: var(--text-secondary); }
-  #tooltip .tt-extra { color: var(--text-muted); margin-top: 3px; }
-
-  footer { color: var(--text-muted); font-size: 12px; margin-top: 18px; }
-
-  /* Leaflet popup obeys the card chrome */
-  .leaflet-popup-content-wrapper { background: var(--surface-1); color: var(--text-primary); border-radius: 10px; }
-  .leaflet-popup-content { font: 12.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 10px 12px; }
-  .leaflet-popup-tip { background: var(--surface-1); }
-  .popup-title { font-weight: 650; }
-  .popup-line { color: var(--text-secondary); }
+  button.go:disabled { opacity: .45; cursor: default; }
+  .caveat {
+    margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);
+    font-size: 11.5px; color: var(--text-muted);
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="page">
-    <h1>Field Jobs Dashboard</h1>
-    <span class="badge">DEMO — sample data</span>
-  </header>
-  <p class="subtitle">Static mockup for GitHub Pages — no logins, no live data. All clients, jobs, and locations are fictional.</p>
-
-  <div class="filters" id="filters">
-    <label for="f-range">Date range</label>
-    <select id="f-range">
-      <option value="all" selected>All time</option>
-      <option value="30">Last 30 days</option>
-      <option value="90">Last 90 days</option>
-      <option value="ytd">Year to date</option>
-    </select>
-    <label for="f-status">Status</label>
-    <select id="f-status">
-      <option value="all" selected>All statuses</option>
-      <option value="In Progress">In progress</option>
-      <option value="Scheduled">Scheduled</option>
-      <option value="Completed">Completed</option>
-    </select>
-  </div>
-
-  <div class="kpis">
-    <div class="tile"><div class="label">Jobs shown</div><div class="value" id="k-total">–</div><div class="hint" id="k-total-hint"></div></div>
-    <div class="tile"><div class="label">In progress</div><div class="value" id="k-active">–</div><div class="hint">crews currently on site</div></div>
-    <div class="tile"><div class="label">Scheduled</div><div class="value" id="k-sched">–</div><div class="hint">not yet started</div></div>
-    <div class="tile"><div class="label">Completed</div><div class="value" id="k-done">–</div><div class="hint">in selected range</div></div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h2>Jobs by client</h2>
-      <p class="sub">Clients with fewer than 5 jobs are grouped into “Other” — hover it for the breakdown</p>
-      <div id="chart" role="img" aria-label="Row chart of job counts by client"></div>
-      <div class="chart-axis"><span></span><span class="rule">number of jobs</span><span></span></div>
-    </div>
-    <div class="card">
-      <h2>Job locations</h2>
-      <p class="sub">Pin color shows status — click a pin for job details</p>
-      <div id="map"></div>
-      <div class="map-legend" id="map-legend"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>All jobs</h2>
-    <p class="sub">The table view of everything above</p>
-    <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Job</th><th>Client</th><th>Description</th><th>Status</th><th>City</th><th>Start date</th></tr></thead>
-        <tbody id="table-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <footer>Built as a throwaway online demo of the jobs dashboard concept. Data lives in this file.</footer>
-</div>
-
-<div id="tooltip" role="status"></div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<form class="card" id="form">
+  <h1>Field Jobs Dashboard<span class="badge">DEMO</span></h1>
+  <p class="sub">Pick a person to see their view of the jobs data.</p>
+  <div class="users" id="users"></div>
+  <label for="pw">Password</label>
+  <input type="password" id="pw" autocomplete="off" placeholder="password">
+  <div class="hint">Demo password for everyone: <strong>demo</strong></div>
+  <div class="error" id="error">Wrong password — the demo password is “demo”.</div>
+  <button class="go" id="go" type="submit" disabled>Sign in</button>
+  <p class="caveat">Concept mockup only — this is front-end pretend-login on a public
+  static site, not real security. All data here is fictional. A real deployment would
+  use a BI tool’s server-side permissions (e.g. Metabase sandboxing).</p>
+</form>
+<script src="data.js"></script>
 <script>
 "use strict";
+let selected = null;
+const usersEl = document.getElementById("users");
+const goBtn = document.getElementById("go");
 
-/* ---------- Sample data (fictional) ---------- */
-const JOBS = [
-  {id:"J-1001", client:"Harborlink Networks",    desc:"Backbone splice & test — 48ct",    status:"Completed",   date:"2025-02-10", city:"San Francisco", lat:37.7936, lng:-122.3966},
-  {id:"J-1002", client:"Harborlink Networks",    desc:"OTDR characterization, ring A",    status:"Completed",   date:"2025-03-04", city:"Oakland",       lat:37.8049, lng:-122.2712},
-  {id:"J-1003", client:"Harborlink Networks",    desc:"Emergency restoration, MH 14",     status:"Completed",   date:"2025-05-19", city:"Daly City",     lat:37.6879, lng:-122.4702},
-  {id:"J-1004", client:"Harborlink Networks",    desc:"New lateral build — 2,400 ft",     status:"Completed",   date:"2025-08-22", city:"San Mateo",     lat:37.5629, lng:-122.3255},
-  {id:"J-1005", client:"Harborlink Networks",    desc:"Node cutover & acceptance",        status:"Completed",   date:"2025-11-13", city:"Hayward",       lat:37.6688, lng:-122.0810},
-  {id:"J-1006", client:"Harborlink Networks",    desc:"Ring B bidirectional testing",     status:"Completed",   date:"2026-02-06", city:"Fremont",       lat:37.5483, lng:-121.9886},
-  {id:"J-1007", client:"Harborlink Networks",    desc:"FTTx drop rehab, phase 1",         status:"In Progress", date:"2026-06-15", city:"San Jose",      lat:37.3352, lng:-121.8931},
-  {id:"J-1008", client:"Harborlink Networks",    desc:"FTTx drop rehab, phase 2",         status:"In Progress", date:"2026-07-06", city:"Santa Clara",   lat:37.3541, lng:-121.9552},
-  {id:"J-1009", client:"Harborlink Networks",    desc:"Ring C characterization",          status:"Scheduled",   date:"2026-08-17", city:"Berkeley",      lat:37.8715, lng:-122.2730},
-
-  {id:"J-1010", client:"CityGrid Transit",       desc:"Station fiber survey — Line 1",    status:"Completed",   date:"2025-01-27", city:"San Francisco", lat:37.7793, lng:-122.4139},
-  {id:"J-1011", client:"CityGrid Transit",       desc:"Tunnel segment splice, seg 4",     status:"Completed",   date:"2025-04-14", city:"San Francisco", lat:37.7648, lng:-122.4194},
-  {id:"J-1012", client:"CityGrid Transit",       desc:"Platform CCTV backhaul",           status:"Completed",   date:"2025-07-08", city:"Oakland",       lat:37.8027, lng:-122.2645},
-  {id:"J-1013", client:"CityGrid Transit",       desc:"Wayside cabinet re-termination",   status:"Completed",   date:"2025-10-02", city:"Daly City",     lat:37.7061, lng:-122.4692},
-  {id:"J-1014", client:"CityGrid Transit",       desc:"Line 2 acceptance testing",        status:"Completed",   date:"2026-01-21", city:"Richmond",      lat:37.9364, lng:-122.3477},
-  {id:"J-1015", client:"CityGrid Transit",       desc:"Interlocking comms upgrade",       status:"In Progress", date:"2026-05-26", city:"Concord",       lat:37.9779, lng:-122.0311},
-  {id:"J-1016", client:"CityGrid Transit",       desc:"Yard LAN fiber extension",         status:"In Progress", date:"2026-06-29", city:"Hayward",       lat:37.6560, lng:-122.0937},
-  {id:"J-1017", client:"CityGrid Transit",       desc:"Line 3 tunnel characterization",   status:"Scheduled",   date:"2026-09-08", city:"Walnut Creek",  lat:37.9063, lng:-122.0653},
-
-  {id:"J-1018", client:"Pacific Crest Utilities",desc:"Substation OPGW test",             status:"Completed",   date:"2025-03-31", city:"Vallejo",       lat:38.1041, lng:-122.2566},
-  {id:"J-1019", client:"Pacific Crest Utilities",desc:"Distribution ADSS build",          status:"Completed",   date:"2025-06-24", city:"Concord",       lat:37.9722, lng:-122.0016},
-  {id:"J-1020", client:"Pacific Crest Utilities",desc:"SCADA fiber loop closure",         status:"Completed",   date:"2025-09-16", city:"Antioch",       lat:38.0049, lng:-121.8058},
-  {id:"J-1021", client:"Pacific Crest Utilities",desc:"Storm damage restoration",         status:"Completed",   date:"2026-01-05", city:"Santa Rosa",    lat:38.4404, lng:-122.7141},
-  {id:"J-1022", client:"Pacific Crest Utilities",desc:"Microwave-to-fiber migration",     status:"In Progress", date:"2026-06-08", city:"Napa",          lat:38.2975, lng:-122.2869},
-  {id:"J-1023", client:"Pacific Crest Utilities",desc:"Substation ring extension",        status:"Scheduled",   date:"2026-08-24", city:"Fairfield",     lat:38.2494, lng:-122.0400},
-
-  {id:"J-1024", client:"Bayline Communications", desc:"Campus backbone install",          status:"Completed",   date:"2025-05-06", city:"Palo Alto",     lat:37.4419, lng:-122.1630},
-  {id:"J-1025", client:"Bayline Communications", desc:"Dark fiber audit — 96ct",          status:"Completed",   date:"2025-08-11", city:"Redwood City",  lat:37.4852, lng:-122.2364},
-  {id:"J-1026", client:"Bayline Communications", desc:"Colo cross-connect buildout",      status:"Completed",   date:"2025-12-09", city:"Santa Clara",   lat:37.3688, lng:-121.9614},
-  {id:"J-1027", client:"Bayline Communications", desc:"Metro ring splice & test",         status:"In Progress", date:"2026-07-01", city:"San Jose",      lat:37.3230, lng:-121.9000},
-  {id:"J-1028", client:"Bayline Communications", desc:"Lateral to new MTU",               status:"Scheduled",   date:"2026-09-21", city:"Mountain View", lat:37.3861, lng:-122.0839},
-
-  {id:"J-1029", client:"Summit Datacenters",     desc:"Meet-me room fiber plant",         status:"Completed",   date:"2025-04-29", city:"Santa Clara",   lat:37.3803, lng:-121.9731},
-  {id:"J-1030", client:"Summit Datacenters",     desc:"Inter-building duct bank",         status:"Completed",   date:"2025-10-27", city:"San Jose",      lat:37.3639, lng:-121.9289},
-  {id:"J-1031", client:"Summit Datacenters",     desc:"Campus ring OTDR baseline",        status:"Completed",   date:"2026-03-09", city:"Fremont",       lat:37.5107, lng:-121.9790},
-  {id:"J-1032", client:"Summit Datacenters",     desc:"Phase 3 hall fiber trunk",         status:"In Progress", date:"2026-06-22", city:"Santa Clara",   lat:37.3752, lng:-121.9500},
-  {id:"J-1033", client:"Summit Datacenters",     desc:"DR site diverse-path build",       status:"Scheduled",   date:"2026-10-05", city:"Sacramento",    lat:38.5816, lng:-121.4944},
-
-  {id:"J-1034", client:"Redwood Medical Group",  desc:"Clinic WAN fiber upgrade",         status:"Completed",   date:"2025-06-03", city:"San Rafael",    lat:37.9735, lng:-122.5311},
-  {id:"J-1035", client:"Redwood Medical Group",  desc:"Hospital campus redundancy",       status:"Completed",   date:"2025-11-24", city:"Oakland",       lat:37.8136, lng:-122.2470},
-  {id:"J-1036", client:"Redwood Medical Group",  desc:"Imaging center dark fiber",        status:"In Progress", date:"2026-07-13", city:"Berkeley",      lat:37.8632, lng:-122.2586},
-  {id:"J-1037", client:"Redwood Medical Group",  desc:"New clinic lateral",               status:"Scheduled",   date:"2026-08-31", city:"Alameda",       lat:37.7652, lng:-122.2416},
-
-  {id:"J-1038", client:"Foglight Media",         desc:"Studio-to-colo dark fiber",        status:"Completed",   date:"2025-07-22", city:"San Francisco", lat:37.7702, lng:-122.4032},
-  {id:"J-1039", client:"Foglight Media",         desc:"Broadcast van fiber tie-ins",      status:"Completed",   date:"2026-02-17", city:"San Francisco", lat:37.7785, lng:-122.3892},
-  {id:"J-1040", client:"Foglight Media",         desc:"Event venue temporary fiber",      status:"In Progress", date:"2026-07-08", city:"San Francisco", lat:37.7841, lng:-122.4077},
-
-  {id:"J-1041", client:"Eastshore Logistics",    desc:"Warehouse yard fiber loop",        status:"Completed",   date:"2025-09-09", city:"Richmond",      lat:37.9158, lng:-122.3108},
-  {id:"J-1042", client:"Eastshore Logistics",    desc:"Gate automation comms",            status:"In Progress", date:"2026-06-01", city:"Oakland",       lat:37.7957, lng:-122.2792},
-
-  {id:"J-1043", client:"Marina Point HOA",       desc:"Community FTTH phase 1",           status:"Completed",   date:"2025-12-15", city:"Alameda",       lat:37.7726, lng:-122.2833},
-  {id:"J-1044", client:"Marina Point HOA",       desc:"Community FTTH phase 2",           status:"Scheduled",   date:"2026-09-14", city:"Alameda",       lat:37.7737, lng:-122.2871},
-
-  {id:"J-1045", client:"Delta Charter Schools",  desc:"School district WAN links",        status:"Completed",   date:"2026-04-13", city:"Antioch",       lat:37.9857, lng:-121.7960},
-
-  {id:"J-1046", client:"Ironside Manufacturing", desc:"Plant floor fiber backbone",       status:"In Progress", date:"2026-07-15", city:"Hayward",       lat:37.6305, lng:-122.1072}
-];
-
-const SMALL_CLIENT_THRESHOLD = 5;   // clients with fewer jobs than this fold into “Other”
-const STATUS_COLOR = () => ({
-  "In Progress": getComputedStyle(document.documentElement).getPropertyValue("--series-1").trim(),
-  "Completed":   getComputedStyle(document.documentElement).getPropertyValue("--status-good").trim(),
-  "Scheduled":   getComputedStyle(document.documentElement).getPropertyValue("--neutral").trim()
+Object.entries(PMS).forEach(([id, p]) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "user"; b.dataset.id = id;
+  const av = document.createElement("span");
+  av.className = "avatar";
+  av.textContent = p.name.split(" ").map(w => w[0]).join("");
+  const who = document.createElement("span"); who.className = "who";
+  const nm = document.createElement("div"); nm.textContent = p.name;
+  const rl = document.createElement("div"); rl.className = "role";
+  rl.textContent = p.role + (p.manager ? " — sees all jobs" : "");
+  who.append(nm, rl);
+  b.append(av, who);
+  b.addEventListener("click", () => {
+    selected = id;
+    document.querySelectorAll(".user").forEach(u => u.classList.toggle("selected", u.dataset.id === id));
+    goBtn.disabled = false;
+  });
+  usersEl.appendChild(b);
 });
 
-/* ---------- Filters ---------- */
-const elRange = document.getElementById("f-range");
-const elStatus = document.getElementById("f-status");
-
-function filteredJobs() {
-  const now = new Date();
-  let from = null;
-  if (elRange.value === "30")  from = new Date(now.getTime() - 30 * 864e5);
-  if (elRange.value === "90")  from = new Date(now.getTime() - 90 * 864e5);
-  if (elRange.value === "ytd") from = new Date(now.getFullYear(), 0, 1);
-  return JOBS.filter(j => {
-    if (from && new Date(j.date) < from) return false;
-    if (elStatus.value !== "all" && j.status !== elStatus.value) return false;
-    return true;
-  });
-}
-
-/* ---------- KPI tiles ---------- */
-function renderTiles(jobs) {
-  const by = s => jobs.filter(j => j.status === s).length;
-  document.getElementById("k-total").textContent = jobs.length;
-  document.getElementById("k-total-hint").textContent =
-    new Set(jobs.map(j => j.client)).size + " clients";
-  document.getElementById("k-active").textContent = by("In Progress");
-  document.getElementById("k-sched").textContent = by("Scheduled");
-  document.getElementById("k-done").textContent = by("Completed");
-}
-
-/* ---------- Tooltip ---------- */
-const tooltip = document.getElementById("tooltip");
-function showTooltip(x, y, lines) {
-  tooltip.replaceChildren();
-  lines.forEach(([cls, text]) => {
-    const d = document.createElement("div");
-    d.className = cls;
-    d.textContent = text;             // labels are untrusted — textContent only
-    tooltip.appendChild(d);
-  });
-  tooltip.style.display = "block";
-  const pad = 14, r = tooltip.getBoundingClientRect();
-  tooltip.style.left = Math.min(x + pad, window.innerWidth - r.width - 8) + "px";
-  tooltip.style.top  = Math.min(y + pad, window.innerHeight - r.height - 8) + "px";
-}
-function hideTooltip() { tooltip.style.display = "none"; }
-
-/* ---------- Row chart: jobs by client, small clients → “Other” ---------- */
-function renderChart(jobs) {
-  const counts = new Map();
-  jobs.forEach(j => counts.set(j.client, (counts.get(j.client) || 0) + 1));
-
-  const big = [], small = [];
-  counts.forEach((n, client) => (n >= SMALL_CLIENT_THRESHOLD ? big : small).push({ client, n }));
-  big.sort((a, b) => b.n - a.n || a.client.localeCompare(b.client));
-  small.sort((a, b) => b.n - a.n || a.client.localeCompare(b.client));
-
-  const rows = [...big];
-  if (small.length) rows.push({
-    client: `Other (${small.length} client${small.length > 1 ? "s" : ""})`,
-    n: small.reduce((s, c) => s + c.n, 0),
-    other: small
-  });
-
-  const total = jobs.length || 1;
-  const max = Math.max(1, ...rows.map(r => r.n));
-  const chart = document.getElementById("chart");
-  chart.replaceChildren();
-
-  rows.forEach(r => {
-    const row = document.createElement("div");
-    row.className = "bar-row";
-    row.tabIndex = 0;
-
-    const label = document.createElement("span");
-    label.className = "bar-label";
-    label.textContent = r.client;
-    label.title = r.client;
-
-    const track = document.createElement("div");
-    track.className = "bar-track";
-    const bar = document.createElement("div");
-    bar.className = "bar" + (r.other ? " other" : "");
-    bar.style.width = (r.n / max * 100) + "%";
-    track.appendChild(bar);
-
-    const val = document.createElement("span");
-    val.className = "bar-value";
-    val.textContent = r.n;
-
-    row.append(label, track, val);
-
-    const tip = e => {
-      const pct = Math.round(r.n / total * 100);
-      const lines = [["tt-value", r.n + " job" + (r.n !== 1 ? "s" : "")],
-                     ["tt-label", r.other ? "Clients with fewer than " + SMALL_CLIENT_THRESHOLD + " jobs" : r.client],
-                     ["tt-extra", pct + "% of jobs shown"]];
-      if (r.other) lines.push(["tt-extra", r.other.map(c => `${c.client} (${c.n})`).join(" · ")]);
-      const rect = row.getBoundingClientRect();
-      showTooltip(e && e.clientX ? e.clientX : rect.right - 60, e && e.clientY ? e.clientY : rect.top, lines);
-    };
-    row.addEventListener("pointermove", tip);
-    row.addEventListener("pointerleave", hideTooltip);
-    row.addEventListener("focus", () => tip(null));
-    row.addEventListener("blur", hideTooltip);
-    chart.appendChild(row);
-  });
-
-  if (!rows.length) {
-    const empty = document.createElement("p");
-    empty.className = "sub";
-    empty.textContent = "No jobs match the current filters.";
-    chart.appendChild(empty);
-  }
-}
-
-/* ---------- Map ---------- */
-let map, markerLayer;
-const hasLeaflet = () => typeof L !== "undefined";
-function initMap() {
-  if (!hasLeaflet()) {   // CDN unreachable (offline) — keep the rest of the dashboard alive
-    const note = document.createElement("p");
-    note.className = "sub";
-    note.textContent = "Map unavailable — the Leaflet/OpenStreetMap CDN could not be reached. Job locations are listed in the table below.";
-    document.getElementById("map").replaceWith(note);
-    return;
-  }
-  map = L.map("map", { scrollWheelZoom: false }).setView([37.7, -122.2], 9);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(map);
-  markerLayer = L.layerGroup().addTo(map);
-
-  const legend = document.getElementById("map-legend");
-  const colors = STATUS_COLOR();
-  ["In Progress", "Completed", "Scheduled"].forEach(s => {
-    const item = document.createElement("span");
-    const dot = document.createElement("span");
-    dot.className = "key-dot";
-    dot.style.background = colors[s];
-    item.append(dot, document.createTextNode(s));
-    legend.appendChild(item);
-  });
-}
-
-function renderMap(jobs) {
-  if (!hasLeaflet()) return;
-  const colors = STATUS_COLOR();
-  const surface = getComputedStyle(document.documentElement).getPropertyValue("--surface-1").trim();
-  markerLayer.clearLayers();
-  const pts = [];
-  jobs.forEach(j => {
-    pts.push([j.lat, j.lng]);
-    const m = L.circleMarker([j.lat, j.lng], {
-      radius: 8, weight: 2, color: surface,            // 2px surface ring
-      fillColor: colors[j.status], fillOpacity: 1
-    });
-    const div = document.createElement("div");
-    const t = document.createElement("div"); t.className = "popup-title";
-    t.textContent = `${j.id} — ${j.client}`;
-    div.appendChild(t);
-    [j.desc, `${j.status} · ${j.city}`, "Start: " + j.date].forEach(txt => {
-      const p = document.createElement("div"); p.className = "popup-line";
-      p.textContent = txt; div.appendChild(p);
-    });
-    m.bindPopup(div);
-    m.addTo(markerLayer);
-  });
-  if (pts.length) map.fitBounds(pts, { padding: [24, 24], maxZoom: 11 });
-}
-
-/* ---------- Table ---------- */
-function renderTable(jobs) {
-  const colors = STATUS_COLOR();
-  const body = document.getElementById("table-body");
-  body.replaceChildren();
-  [...jobs].sort((a, b) => b.date.localeCompare(a.date)).forEach(j => {
-    const tr = document.createElement("tr");
-    const cells = [
-      ["job-id", j.id], ["", j.client], ["", j.desc], ["status", ""], ["", j.city], ["date", j.date]
-    ];
-    cells.forEach(([cls, text]) => {
-      const td = document.createElement("td");
-      if (cls) td.className = cls;
-      if (cls === "status") {
-        const dot = document.createElement("span");
-        dot.className = "key-dot";
-        dot.style.background = colors[j.status];
-        td.append(dot, document.createTextNode(j.status));
-      } else td.textContent = text;
-      tr.appendChild(td);
-    });
-    body.appendChild(tr);
-  });
-}
-
-/* ---------- Wire up ---------- */
-function renderAll() {
-  const jobs = filteredJobs();
-  renderTiles(jobs);
-  renderChart(jobs);
-  renderMap(jobs);
-  renderTable(jobs);
-}
-elRange.addEventListener("change", renderAll);
-elStatus.addEventListener("change", renderAll);
-initMap();
-renderAll();
+document.getElementById("form").addEventListener("submit", e => {
+  e.preventDefault();
+  if (!selected) return;
+  const ok = document.getElementById("pw").value === DEMO_PASSWORD;
+  document.getElementById("error").style.display = ok ? "none" : "block";
+  if (ok) window.location.href = "dashboard.html?user=" + encodeURIComponent(selected);
+});
 </script>
 </body>
 </html>
