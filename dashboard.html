@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Jobs Dashboard — Demo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6; --neutral: #898781;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7;
+      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text-primary);
+         font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.45; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 20px 48px; }
+
+  header.page { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header.page h1 { font-size: 20px; font-weight: 650; margin: 0; }
+  .badge { font-size: 11px; font-weight: 600; color: var(--text-secondary);
+           border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; background: var(--surface-1); }
+  .whoami { margin-left: auto; font-size: 12.5px; color: var(--text-secondary); }
+  .whoami a { color: var(--series-1); text-decoration: none; }
+  .subtitle { color: var(--text-muted); margin: 2px 0 16px; }
+
+  .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .filters label { color: var(--text-secondary); font-size: 12.5px; }
+  .filters select { font: inherit; font-size: 13px; color: var(--text-primary);
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px;
+    color: var(--text-secondary); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 99px; padding: 4px 11px; cursor: pointer; }
+  .chip[aria-pressed="true"] { color: var(--text-primary); border-color: var(--text-muted); }
+  .chip[aria-pressed="false"] { opacity: .45; }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .tile .label { font-size: 12px; color: var(--text-secondary); }
+  .tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+  .tile .hint { font-size: 11.5px; color: var(--text-muted); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+          padding: 14px 16px 16px; margin-bottom: 12px; }
+  .card h2 { font-size: 14px; font-weight: 650; margin: 0 0 2px; }
+  .card .sub { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+
+  .bar-row { display: grid; grid-template-columns: 168px 1fr 44px; align-items: center; gap: 8px;
+             padding: 4px 0; border-radius: 6px; outline: none; }
+  .bar-row:hover .bar, .bar-row:focus-visible .bar { filter: brightness(1.12); }
+  .bar-row:focus-visible { box-shadow: 0 0 0 2px var(--series-1); }
+  .bar-label { font-size: 12.5px; color: var(--text-secondary); text-align: right;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { position: relative; height: 20px; }
+  .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--series-1);
+         border-radius: 0 4px 4px 0; min-width: 3px; }
+  .bar.other { background: var(--neutral); }
+  .bar-value { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .chart-axis { display: grid; grid-template-columns: 168px 1fr 44px; gap: 8px; margin-top: 6px;
+                color: var(--text-muted); font-size: 11px; }
+  .chart-axis .rule { border-top: 1px solid var(--baseline); padding-top: 3px; }
+
+  #map { height: 380px; border-radius: 8px; }
+  .map-legend { display: flex; gap: 6px 16px; margin-top: 10px; font-size: 12px;
+                color: var(--text-secondary); flex-wrap: wrap; align-items: center; }
+  .map-legend .group-label { color: var(--text-muted); font-size: 11.5px; }
+  .key-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+  .key-ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+              border: 3px solid; background: var(--surface-1); margin-right: 5px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 600; font-size: 12px;
+       border-bottom: 1px solid var(--baseline); padding: 6px 8px; }
+  td { border-bottom: 1px solid var(--grid); padding: 6px 8px; color: var(--text-secondary); }
+  td.job-id { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  td.date { font-variant-numeric: tabular-nums; }
+
+  #tooltip { position: fixed; pointer-events: none; z-index: 1000; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.14); padding: 8px 10px; max-width: 260px; font-size: 12.5px; }
+  #tooltip .tt-value { font-size: 15px; font-weight: 650; color: var(--text-primary); }
+  #tooltip .tt-label { color: var(--text-secondary); }
+  #tooltip .tt-extra { color: var(--text-muted); margin-top: 3px; }
+
+  footer { color: var(--text-muted); font-size: 12px; margin-top: 18px; }
+
+  .leaflet-popup-content-wrapper { background: var(--surface-1); color: var(--text-primary); border-radius: 10px; }
+  .leaflet-popup-content { font: 12.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 10px 12px; }
+  .leaflet-popup-tip { background: var(--surface-1); }
+  .popup-title { font-weight: 650; }
+  .popup-line { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <h1>Field Jobs Dashboard</h1>
+    <span class="badge">DEMO — sample data</span>
+    <span class="whoami" id="whoami"></span>
+  </header>
+  <p class="subtitle" id="scope-line"></p>
+
+  <div class="filters">
+    <label for="f-range">Date range</label>
+    <select id="f-range">
+      <option value="all" selected>All time</option>
+      <option value="30">Last 30 days</option>
+      <option value="90">Last 90 days</option>
+      <option value="ytd">Year to date</option>
+    </select>
+    <label for="f-status">Status</label>
+    <select id="f-status">
+      <option value="all" selected>All statuses</option>
+      <option value="In Progress">In progress</option>
+      <option value="Scheduled">Scheduled</option>
+      <option value="Completed">Completed</option>
+    </select>
+    <span id="pm-filter-slot"></span>
+  </div>
+  <div class="chips" id="client-chips" role="group" aria-label="Toggle clients"></div>
+
+  <div class="kpis">
+    <div class="tile"><div class="label">Jobs shown</div><div class="value" id="k-total">–</div><div class="hint" id="k-total-hint"></div></div>
+    <div class="tile"><div class="label">In progress</div><div class="value" id="k-active">–</div><div class="hint">crews currently on site</div></div>
+    <div class="tile"><div class="label">Scheduled</div><div class="value" id="k-sched">–</div><div class="hint">not yet started</div></div>
+    <div class="tile"><div class="label">Completed</div><div class="value" id="k-done">–</div><div class="hint">in selected range</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Jobs by client</h2>
+      <p class="sub">Clients with fewer than 5 jobs are grouped into “Other” — hover it for the breakdown</p>
+      <div id="chart" role="img" aria-label="Row chart of job counts by client"></div>
+      <div class="chart-axis"><span></span><span class="rule">number of jobs</span><span></span></div>
+    </div>
+    <div class="card">
+      <h2>Job locations</h2>
+      <p class="sub">Fill color = client · border color = status — click a pin for details</p>
+      <div id="map"></div>
+      <div class="map-legend" id="map-legend"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>All jobs</h2>
+    <p class="sub">The table view of everything above</p>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Job</th><th>Client</th><th>Description</th><th>Status</th><th>PM</th><th>City</th><th>Start date</th></tr></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Concept mockup — the “login” is front-end only and not real security.
+  Data lives in <code>data.js</code>; edit it to try your own.</footer>
+</div>
+
+<div id="tooltip" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data.js"></script>
+<script>
+"use strict";
+
+/* ---------- "Auth" (demo only) ---------- */
+const userId = new URLSearchParams(location.search).get("user");
+const user = PMS[userId];
+if (!user) location.replace("index.html");
+const userJobs = user && user.manager ? JOBS : JOBS.filter(j => j.pm === userId);
+
+const whoami = document.getElementById("whoami");
+whoami.append(document.createTextNode(`Signed in as ${user ? user.name : ""} · ${user ? user.role : ""} — `));
+const out = document.createElement("a"); out.href = "index.html"; out.textContent = "sign out";
+whoami.appendChild(out);
+document.getElementById("scope-line").textContent = user && user.manager
+  ? "Company-wide view — all PMs, all clients. Fictional demo data."
+  : `Showing only ${user ? user.name : ""}’s jobs — other PMs’ work is hidden. Fictional demo data.`;
+
+/* ---------- Color helpers ---------- */
+const darkMode = window.matchMedia("(prefers-color-scheme: dark)");
+const mode = () => (darkMode.matches ? "dark" : "light");
+const clientFill = c => (CLIENT_COLORS[c] ? CLIENT_COLORS[c][mode()] : OTHER_COLOR[mode()]);
+
+/* ---------- Filters ---------- */
+const elRange = document.getElementById("f-range");
+const elStatus = document.getElementById("f-status");
+let elPm = null;
+if (user && user.manager) {
+  const slot = document.getElementById("pm-filter-slot");
+  const lbl = document.createElement("label"); lbl.htmlFor = "f-pm"; lbl.textContent = "PM";
+  elPm = document.createElement("select"); elPm.id = "f-pm";
+  const all = document.createElement("option"); all.value = "all"; all.textContent = "All PMs";
+  elPm.appendChild(all);
+  Object.entries(PMS).filter(([, p]) => !p.manager).forEach(([id, p]) => {
+    const o = document.createElement("option"); o.value = id; o.textContent = p.name;
+    elPm.appendChild(o);
+  });
+  slot.append(lbl, document.createTextNode(" "), elPm);
+  elPm.addEventListener("change", renderAll);
+}
+
+/* Client chips — fixed groups from this user's data: named chip per client
+   with >= 5 jobs, one "Other" chip for the rest. All on by default. */
+const chipState = new Map();   // key -> boolean
+const counts = new Map();
+userJobs.forEach(j => counts.set(j.client, (counts.get(j.client) || 0) + 1));
+const namedClients = [...counts.entries()].filter(([, n]) => n >= 5)
+  .sort((a, b) => b[1] - a[1]).map(([c]) => c);
+const otherClients = [...counts.keys()].filter(c => !namedClients.includes(c));
+const chipDefs = namedClients.map(c => ({ key: c, label: c, color: () => clientFill(c) }));
+if (otherClients.length) chipDefs.push({
+  key: "__other__", label: `Other (${otherClients.length})`, color: () => OTHER_COLOR[mode()]
+});
+const chipsEl = document.getElementById("client-chips");
+chipDefs.forEach(def => {
+  chipState.set(def.key, true);
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.setAttribute("aria-pressed", "true");
+  const dot = document.createElement("span"); dot.className = "dot";
+  dot.style.background = def.color();
+  b.append(dot, document.createTextNode(def.label));
+  b.title = def.key === "__other__" ? otherClients.join(", ") : def.label;
+  b.addEventListener("click", () => {
+    chipState.set(def.key, !chipState.get(def.key));
+    b.setAttribute("aria-pressed", String(chipState.get(def.key)));
+    renderAll();
+  });
+  chipsEl.appendChild(b);
+});
+const clientOn = c => chipState.get(namedClients.includes(c) ? c : "__other__") !== false;
+
+function filteredJobs() {
+  const now = new Date();
+  let from = null;
+  if (elRange.value === "30")  from = new Date(now.getTime() - 30 * 864e5);
+  if (elRange.value === "90")  from = new Date(now.getTime() - 90 * 864e5);
+  if (elRange.value === "ytd") from = new Date(now.getFullYear(), 0, 1);
+  return userJobs.filter(j => {
+    if (from && new Date(j.date) < from) return false;
+    if (elStatus.value !== "all" && j.status !== elStatus.value) return false;
+    if (elPm && elPm.value !== "all" && j.pm !== elPm.value) return false;
+    if (!clientOn(j.client)) return false;
+    return true;
+  });
+}
+
+/* ---------- KPI tiles ---------- */
+function renderTiles(jobs) {
+  const by = s => jobs.filter(j => j.status === s).length;
+  document.getElementById("k-total").textContent = jobs.length;
+  document.getElementById("k-total-hint").textContent =
+    new Set(jobs.map(j => j.client)).size + " clients";
+  document.getElementById("k-active").textContent = by("In Progress");
+  document.getElementById("k-sched").textContent = by("Scheduled");
+  document.getElementById("k-done").textContent = by("Completed");
+}
+
+/* ---------- Tooltip ---------- */
+const tooltip = document.getElementById("tooltip");
+function showTooltip(x, y, lines) {
+  tooltip.replaceChildren();
+  lines.forEach(([cls, text]) => {
+    const d = document.createElement("div");
+    d.className = cls;
+    d.textContent = text;
+    tooltip.appendChild(d);
+  });
+  tooltip.style.display = "block";
+  const pad = 14, r = tooltip.getBoundingClientRect();
+  tooltip.style.left = Math.min(x + pad, window.innerWidth - r.width - 8) + "px";
+  tooltip.style.top  = Math.min(y + pad, window.innerHeight - r.height - 8) + "px";
+}
+function hideTooltip() { tooltip.style.display = "none"; }
+
+/* ---------- Row chart ---------- */
+const SMALL_CLIENT_THRESHOLD = 5;
+function renderChart(jobs) {
+  const cts = new Map();
+  jobs.forEach(j => cts.set(j.client, (cts.get(j.client) || 0) + 1));
+  const big = [], small = [];
+  cts.forEach((n, client) => (n >= SMALL_CLIENT_THRESHOLD ? big : small).push({ client, n }));
+  big.sort((a, b) => b.n - a.n || a.client.localeCompare(b.client));
+  small.sort((a, b) => b.n - a.n || a.client.localeCompare(b.client));
+  const rows = [...big];
+  if (small.length) rows.push({
+    client: `Other (${small.length} client${small.length > 1 ? "s" : ""})`,
+    n: small.reduce((s, c) => s + c.n, 0), other: small
+  });
+
+  const total = jobs.length || 1;
+  const max = Math.max(1, ...rows.map(r => r.n));
+  const chart = document.getElementById("chart");
+  chart.replaceChildren();
+  rows.forEach(r => {
+    const row = document.createElement("div");
+    row.className = "bar-row"; row.tabIndex = 0;
+    const label = document.createElement("span");
+    label.className = "bar-label"; label.textContent = r.client; label.title = r.client;
+    const track = document.createElement("div"); track.className = "bar-track";
+    const bar = document.createElement("div");
+    bar.className = "bar" + (r.other ? " other" : "");
+    bar.style.width = (r.n / max * 100) + "%";
+    track.appendChild(bar);
+    const val = document.createElement("span");
+    val.className = "bar-value"; val.textContent = r.n;
+    row.append(label, track, val);
+    const tip = e => {
+      const pct = Math.round(r.n / total * 100);
+      const lines = [["tt-value", r.n + " job" + (r.n !== 1 ? "s" : "")],
+                     ["tt-label", r.other ? "Clients with fewer than " + SMALL_CLIENT_THRESHOLD + " jobs" : r.client],
+                     ["tt-extra", pct + "% of jobs shown"]];
+      if (r.other) lines.push(["tt-extra", r.other.map(c => `${c.client} (${c.n})`).join(" · ")]);
+      const rect = row.getBoundingClientRect();
+      showTooltip(e && e.clientX ? e.clientX : rect.right - 60, e && e.clientY ? e.clientY : rect.top, lines);
+    };
+    row.addEventListener("pointermove", tip);
+    row.addEventListener("pointerleave", hideTooltip);
+    row.addEventListener("focus", () => tip(null));
+    row.addEventListener("blur", hideTooltip);
+    chart.appendChild(row);
+  });
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "sub";
+    empty.textContent = "No jobs match the current filters.";
+    chart.appendChild(empty);
+  }
+}
+
+/* ---------- Map: fill = client, border = status, quiet basemap ---------- */
+let map, markerLayer;
+const hasLeaflet = () => typeof L !== "undefined";
+function initMap() {
+  if (!hasLeaflet()) {
+    const note = document.createElement("p");
+    note.className = "sub";
+    note.textContent = "Map unavailable — the map CDN could not be reached. Job locations are listed in the table below.";
+    document.getElementById("map").replaceWith(note);
+    return;
+  }
+  map = L.map("map", { scrollWheelZoom: false }).setView([37.7, -122.2], 9);
+  // CARTO Voyager: keeps color but drops most POI icons, park shading and clutter
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19, subdomains: "abcd",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+}
+
+function renderLegend(jobs) {
+  const legend = document.getElementById("map-legend");
+  if (!legend) return;
+  legend.replaceChildren();
+  const gl1 = document.createElement("span");
+  gl1.className = "group-label"; gl1.textContent = "Fill = client:";
+  legend.appendChild(gl1);
+  const present = new Set(jobs.map(j => j.client));
+  namedClients.filter(c => present.has(c)).forEach(c => {
+    const item = document.createElement("span");
+    const dot = document.createElement("span");
+    dot.className = "key-dot"; dot.style.background = clientFill(c);
+    item.append(dot, document.createTextNode(c));
+    legend.appendChild(item);
+  });
+  if ([...present].some(c => !namedClients.includes(c))) {
+    const item = document.createElement("span");
+    const dot = document.createElement("span");
+    dot.className = "key-dot"; dot.style.background = OTHER_COLOR[mode()];
+    item.append(dot, document.createTextNode("Other clients"));
+    legend.appendChild(item);
+  }
+  const gl2 = document.createElement("span");
+  gl2.className = "group-label"; gl2.textContent = "Border = status:";
+  legend.appendChild(gl2);
+  Object.entries(STATUS_BORDER).forEach(([s, col]) => {
+    const item = document.createElement("span");
+    const ring = document.createElement("span");
+    ring.className = "key-ring"; ring.style.borderColor = col;
+    item.append(ring, document.createTextNode(s));
+    legend.appendChild(item);
+  });
+}
+
+function renderMap(jobs) {
+  if (!hasLeaflet()) return;
+  markerLayer.clearLayers();
+  const pts = [];
+  jobs.forEach(j => {
+    pts.push([j.lat, j.lng]);
+    const m = L.circleMarker([j.lat, j.lng], {
+      radius: 8, weight: 3,
+      color: STATUS_BORDER[j.status] || "#898781",   // border = status
+      fillColor: clientFill(j.client), fillOpacity: 1 // fill = client
+    });
+    const div = document.createElement("div");
+    const t = document.createElement("div"); t.className = "popup-title";
+    t.textContent = `${j.id} — ${j.client}`;
+    div.appendChild(t);
+    const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
+    [j.desc, `${j.status} · ${j.city}`, `PM: ${pmName}`, "Start: " + j.date].forEach(txt => {
+      const p = document.createElement("div"); p.className = "popup-line";
+      p.textContent = txt; div.appendChild(p);
+    });
+    m.bindPopup(div);
+    m.addTo(markerLayer);
+  });
+  if (pts.length) map.fitBounds(pts, { padding: [24, 24], maxZoom: 11 });
+}
+
+/* ---------- Table ---------- */
+function renderTable(jobs) {
+  const body = document.getElementById("table-body");
+  body.replaceChildren();
+  [...jobs].sort((a, b) => b.date.localeCompare(a.date)).forEach(j => {
+    const tr = document.createElement("tr");
+    const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
+    [["job-id", j.id], ["", j.client], ["", j.desc], ["status", ""],
+     ["", pmName], ["", j.city], ["date", j.date]].forEach(([cls, text]) => {
+      const td = document.createElement("td");
+      if (cls) td.className = cls;
+      if (cls === "status") {
+        const ring = document.createElement("span");
+        ring.className = "key-ring";
+        ring.style.borderColor = STATUS_BORDER[j.status] || "#898781";
+        ring.style.background = clientFill(j.client);
+        td.append(ring, document.createTextNode(j.status));
+      } else td.textContent = text;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+}
+
+/* ---------- Wire up ---------- */
+function renderAll() {
+  const jobs = filteredJobs();
+  renderTiles(jobs);
+  renderChart(jobs);
+  renderLegend(jobs);
+  renderMap(jobs);
+  renderTable(jobs);
+}
+elRange.addEventListener("change", renderAll);
+elStatus.addEventListener("change", renderAll);
+darkMode.addEventListener("change", () => {
+  document.querySelectorAll(".chip .dot").forEach((d, i) => { d.style.background = chipDefs[i].color(); });
+  renderAll();
+});
+initMap();
+renderAll();
+</script>
+</body>
+</html>
