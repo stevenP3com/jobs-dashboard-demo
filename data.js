@@ -1,5 +1,5 @@
-/* Shared demo data — all fictional. Edit freely.
-   PMs: each job carries a pm id; "sam" is the ops manager and sees everything. */
+/* Sample data for the Phase 3 Field Jobs demo. All entries are fictional.
+   Each job carries a pm id; "sam" is the operations manager role. */
 "use strict";
 
 const PMS = {
@@ -11,9 +11,8 @@ const PMS = {
 };
 const DEMO_PASSWORD = "demo";
 
-/* Fixed client → color mapping (color follows the entity, never rank).
-   Only the four largest clients get a hue — a 5th hue fails colorblind-
-   separation checks against this set, so the tail is neutral gray. */
+/* Fixed client → color mapping. The four largest clients carry a dedicated,
+   accessibility-checked hue; remaining clients use the neutral gray. */
 const CLIENT_COLORS = {
   "Harborlink Networks":     { light: "#2a78d6", dark: "#3987e5" },  // blue
   "CityGrid Transit":        { light: "#1baf7a", dark: "#199e70" },  // aqua
@@ -22,7 +21,7 @@ const CLIENT_COLORS = {
 };
 const OTHER_COLOR = { light: "#898781", dark: "#898781" };
 
-/* Border color = status (green/amber pass CVD checks against each other). */
+/* Map pin border color by job status. */
 const STATUS_BORDER = {
   "In Progress": "#c98500",
   "Completed":   "#0ca30c",
@@ -144,6 +143,22 @@ function renderP3Header(activeTab) {
   return user;
 }
 
+/* Masks the map so only California is visible, outlines the state border,
+   and expects the map's bounds/zoom limits to be set at creation. */
+function addCaliforniaMask(map) {
+  if (typeof CA_GEO === "undefined" || typeof L === "undefined") return;
+  const page = getComputedStyle(document.documentElement).getPropertyValue("--page").trim() || "#f7f6f5";
+  const polys = CA_GEO.type === "MultiPolygon" ? CA_GEO.coordinates : [CA_GEO.coordinates];
+  const rings = polys.map(p => p[0].map(([lng, lat]) => [lat, lng]));
+  const world = [[-89.9, -179.9], [-89.9, 179.9], [89.9, 179.9], [89.9, -179.9]];
+  L.polygon([world, ...rings], {
+    stroke: false, fillColor: page, fillOpacity: 1, interactive: false
+  }).addTo(map);
+  rings.forEach(r => L.polyline(r.concat([r[0]]), {
+    color: "#898781", weight: 1.2, opacity: 0.8, interactive: false
+  }).addTo(map));
+}
+
 /* Group jobs that share the same coordinates (multiple jobs at one address). */
 function groupByLocation(jobs) {
   const m = new Map();
@@ -155,7 +170,7 @@ function groupByLocation(jobs) {
   return [...m.values()];
 }
 
-/* Demo document placeholders for a job (links go nowhere on purpose). */
+/* Placeholder document list for a job. */
 function docsFor(j) {
   const n = j.id.replace("J-", "");
   const docs = [
