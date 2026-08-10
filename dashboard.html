@@ -292,28 +292,55 @@ function renderLegend(jobs) {
   });
 }
 
+function jobPopupContent(j) {
+  const div = document.createElement("div");
+  const t = document.createElement("div"); t.className = "popup-title";
+  t.textContent = `${j.id} — ${j.client}`;
+  div.appendChild(t);
+  const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
+  [j.desc, `${j.status} · ${j.city}`, `PM: ${pmName}`, "Start: " + j.date].forEach(txt => {
+    const p = document.createElement("div"); p.className = "popup-line";
+    p.textContent = txt; div.appendChild(p);
+  });
+  return div;
+}
+
 function renderMap(jobs) {
   if (!hasLeaflet()) return;
   markerLayer.clearLayers();
   const pts = [];
-  jobs.forEach(j => {
-    pts.push([j.lat, j.lng]);
-    const m = L.circleMarker([j.lat, j.lng], {
-      radius: 8, weight: 3,
-      color: STATUS_BORDER[j.status] || "#898781",
-      fillColor: clientFill(j.client), fillOpacity: 1
-    });
-    const div = document.createElement("div");
-    const t = document.createElement("div"); t.className = "popup-title";
-    t.textContent = `${j.id} — ${j.client}`;
-    div.appendChild(t);
-    const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
-    [j.desc, `${j.status} · ${j.city}`, `PM: ${pmName}`, "Start: " + j.date].forEach(txt => {
-      const p = document.createElement("div"); p.className = "popup-line";
-      p.textContent = txt; div.appendChild(p);
-    });
-    m.bindPopup(div);
-    m.addTo(markerLayer);
+  groupByLocation(jobs).forEach(g => {
+    pts.push([g.lat, g.lng]);
+    if (g.jobs.length === 1) {
+      const j = g.jobs[0];
+      const m = L.circleMarker([j.lat, j.lng], {
+        radius: 8, weight: 3,
+        color: STATUS_BORDER[j.status] || "#898781",
+        fillColor: clientFill(j.client), fillOpacity: 1
+      });
+      m.bindPopup(jobPopupContent(j));
+      m.addTo(markerLayer);
+    } else {
+      const fills = new Set(g.jobs.map(j => clientFill(j.client)));
+      const fill = fills.size === 1 ? [...fills][0] : OTHER_COLOR[mode()];
+      const borders = new Set(g.jobs.map(j => STATUS_BORDER[j.status] || "#898781"));
+      const border = borders.size === 1 ? [...borders][0] : (mode() === "dark" ? "#ffffff" : "#0b0b0b");
+      const m = L.marker([g.lat, g.lng], { icon: L.divIcon({
+        className: "", iconSize: [32, 32], iconAnchor: [16, 16],
+        html: `<div class="multi-pin" style="background:${fill};border-color:${border}">${g.jobs.length}</div>`
+      }) });
+      const wrap = document.createElement("div");
+      const title = document.createElement("div"); title.className = "popup-title";
+      title.textContent = g.jobs.length + " jobs at this location";
+      wrap.appendChild(title);
+      g.jobs.forEach((j, i) => {
+        const inner = jobPopupContent(j);
+        if (i >= 0) inner.style.marginTop = "8px";
+        wrap.appendChild(inner);
+      });
+      m.bindPopup(wrap);
+      m.addTo(markerLayer);
+    }
   });
   if (pts.length) map.fitBounds(pts, { padding: [24, 24], maxZoom: 11 });
 }

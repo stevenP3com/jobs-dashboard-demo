@@ -11,6 +11,8 @@ fictional and lives in `data.js` — edit it to try your own.
   jobs list, and a right panel with full job details, a notes box, and placeholder
   document links (bids, invoices, as-builts, photos) plus an add-document button.
   Documents and uploads are intentionally non-functional in this demo.
+  Jobs sharing one address collapse into a numbered pin — hover to preview,
+  click to pick a job (the sample data includes three such sites).
 - `data.js` — jobs, PM roster, client color mapping, shared header (logo + big
   Dashboard/Map tabs).
 - `styles.css` — shared Phase 3 theme.
