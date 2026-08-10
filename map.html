@@ -156,6 +156,9 @@ document.getElementById("scope-line").textContent = user && user.manager
 const darkMode = window.matchMedia("(prefers-color-scheme: dark)");
 const mode = () => (darkMode.matches ? "dark" : "light");
 const clientFill = c => (CLIENT_COLORS[c] ? CLIENT_COLORS[c][mode()] : OTHER_COLOR[mode()]);
+/* Touch devices have no hover — taps would pin the summary tooltip on screen,
+   so hover summaries are desktop-only. */
+const TOUCH_UI = window.matchMedia("(hover: none), (pointer: coarse)").matches;
 
 /* ---------- Left panel collapse (starts collapsed on small screens) ---------- */
 const leftPanel = document.getElementById("left-panel");
@@ -311,9 +314,11 @@ function renderMap(jobs, fit) {
   // Fiber run polylines first so pins draw above them
   jobs.filter(j => j.route && j.route.length > 1).forEach(j => {
     const line = L.polyline(j.route, routeStyle(j, j.job_number === selectedId));
-    line.on("mouseover mousemove", e =>
-      showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, jobTooltipLines(j)));
-    line.on("mouseout", hideTooltip);
+    if (!TOUCH_UI) {
+      line.on("mouseover mousemove", e =>
+        showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, jobTooltipLines(j)));
+      line.on("mouseout", hideTooltip);
+    }
     line.on("click", () => selectJob(j.job_number, "map"));
     line.addTo(markerLayer);
     routesById.set(j.job_number, { line, job: j });
@@ -324,22 +329,26 @@ function renderMap(jobs, fit) {
     if (g.jobs.length === 1) {
       const j = g.jobs[0];
       const m = L.circleMarker([j.lat, j.lng], j.job_number === selectedId ? selectedStyle(j) : baseStyle(j));
-      m.on("mouseover mousemove", e =>
-        showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, jobTooltipLines(j)));
-      m.on("mouseout", hideTooltip);
+      if (!TOUCH_UI) {
+        m.on("mouseover mousemove", e =>
+          showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, jobTooltipLines(j)));
+        m.on("mouseout", hideTooltip);
+      }
       m.on("click", () => selectJob(j.job_number, "map"));   // clicking again toggles closed
       m.addTo(markerLayer);
       markersById.set(j.job_number, { kind: "single", marker: m, job: j });
     } else {
       const m = L.marker([g.lat, g.lng], { icon: multiPinIcon(g) });
-      m.on("mouseover mousemove", e => {
-        const lines = [["tt-value", g.jobs.length + " jobs at this location"]];
-        g.jobs.slice(0, 4).forEach(j => lines.push(["tt-label", j.job_number + " — " + j.client + " · " + j.status]));
-        if (g.jobs.length > 4) lines.push(["tt-extra", "+ " + (g.jobs.length - 4) + " more…"]);
-        lines.push(["tt-extra", "Click to pick a job"]);
-        showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, lines);
-      });
-      m.on("mouseout", hideTooltip);
+      if (!TOUCH_UI) {
+        m.on("mouseover mousemove", e => {
+          const lines = [["tt-value", g.jobs.length + " jobs at this location"]];
+          g.jobs.slice(0, 4).forEach(j => lines.push(["tt-label", j.job_number + " — " + j.client + " · " + j.status]));
+          if (g.jobs.length > 4) lines.push(["tt-extra", "+ " + (g.jobs.length - 4) + " more…"]);
+          lines.push(["tt-extra", "Click to pick a job"]);
+          showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, lines);
+        });
+        m.on("mouseout", hideTooltip);
+      }
       m.on("click", () => { hideTooltip(); openGroupChooser(g); });
       m.addTo(markerLayer);
       g.jobs.forEach(j => markersById.set(j.job_number, { kind: "multi", marker: m, group: g }));
@@ -486,6 +495,7 @@ function syncUrl() {
 }
 
 function selectJob(id, source) {
+  hideTooltip();
   if (id !== null && id === selectedId) id = null;   // clicking the selected job closes it
   const j = id ? (userJobs.find(x => x.job_number === id) || null) : null;
   const prev = selectedId;
