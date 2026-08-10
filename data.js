@@ -143,22 +143,6 @@ function renderP3Header(activeTab) {
   return user;
 }
 
-/* Masks the map so only California is visible, outlines the state border,
-   and expects the map's bounds/zoom limits to be set at creation. */
-function addCaliforniaMask(map) {
-  if (typeof CA_GEO === "undefined" || typeof L === "undefined") return;
-  const page = getComputedStyle(document.documentElement).getPropertyValue("--page").trim() || "#f7f6f5";
-  const polys = CA_GEO.type === "MultiPolygon" ? CA_GEO.coordinates : [CA_GEO.coordinates];
-  const rings = polys.map(p => p[0].map(([lng, lat]) => [lat, lng]));
-  const world = [[-89.9, -179.9], [-89.9, 179.9], [89.9, 179.9], [89.9, -179.9]];
-  L.polygon([world, ...rings], {
-    stroke: false, fillColor: page, fillOpacity: 1, interactive: false
-  }).addTo(map);
-  rings.forEach(r => L.polyline(r.concat([r[0]]), {
-    color: "#898781", weight: 1.2, opacity: 0.8, interactive: false
-  }).addTo(map));
-}
-
 /* Group jobs that share the same coordinates (multiple jobs at one address). */
 function groupByLocation(jobs) {
   const m = new Map();
