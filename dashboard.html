@@ -75,7 +75,6 @@
 <div id="tooltip" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="ca-boundary.js"></script>
 <script src="data.js"></script>
 <script>
 "use strict";
@@ -258,7 +257,6 @@ function initMap() {
     maxZoom: 19, subdomains: "abcd",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
   }).addTo(map);
-  addCaliforniaMask(map);
   markerLayer = L.layerGroup().addTo(map);
 }
 
