@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map — Phase 3 Field Jobs (Demo)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="styles.css">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  .tool { flex: 1; display: grid; grid-template-columns: 300px 1fr 340px; min-height: 0; }
+  @media (max-width: 980px) { .tool { grid-template-columns: 240px 1fr; } .panel-right { display: none; } }
+
+  .panel { background: var(--surface-1); overflow-y: auto; min-height: 0; }
+  .panel-left  { border-right: 1px solid var(--border); }
+  .panel-right { border-left: 1px solid var(--border); }
+  .panel h2 { font-size: 13px; font-weight: 650; margin: 0; padding: 14px 14px 8px; }
+  .panel .sub { font-size: 11.5px; color: var(--text-muted); margin: 0; padding: 0 14px 10px; }
+
+  .searchbox { padding: 0 14px 10px; display: grid; gap: 8px; }
+  .searchbox input[type=search] { width: 100%; }
+  .searchbox .row { display: flex; gap: 6px; }
+  .searchbox select { flex: 1; min-width: 0; font-size: 12px; }
+  .result-count { font-size: 11.5px; color: var(--text-muted); padding: 0 14px 6px; }
+
+  .job-item { display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
+    background: none; border: none; border-top: 1px solid var(--grid);
+    padding: 10px 14px; color: var(--text-secondary); }
+  .job-item:hover { background: var(--page); }
+  .job-item.selected { background: var(--page); box-shadow: inset 3px 0 0 var(--brand); }
+  .job-item .l1 { display: flex; gap: 8px; align-items: baseline; }
+  .job-item .jid { font-weight: 650; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .job-item .client { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job-item .desc { font-size: 12px; color: var(--text-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job-item .meta { font-size: 11.5px; color: var(--text-muted); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+
+  #bigmap { height: 100%; min-height: 300px; }
+  .map-note { padding: 20px; color: var(--text-muted); }
+
+  /* Right detail panel */
+  .detail-empty { color: var(--text-muted); font-size: 12.5px; padding: 14px; }
+  .detail { padding: 14px; }
+  .detail .jid { font-size: 17px; font-weight: 700; }
+  .detail .client-line { display: flex; align-items: center; gap: 7px; margin: 2px 0 10px; color: var(--text-secondary); }
+  .status-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 99px; padding: 2px 9px; color: var(--text-secondary); }
+  .fieldlist { display: grid; grid-template-columns: 92px 1fr; gap: 4px 10px; font-size: 12.5px; margin-bottom: 14px; }
+  .fieldlist dt { color: var(--text-muted); }
+  .fieldlist dd { margin: 0; color: var(--text-secondary); overflow-wrap: anywhere; }
+  .detail h3 { font-size: 12px; font-weight: 650; margin: 14px 0 6px; color: var(--text-primary);
+    border-top: 1px solid var(--grid); padding-top: 12px; }
+  textarea.notes { width: 100%; min-height: 84px; resize: vertical; }
+  .notes-hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .docs { display: grid; gap: 6px; }
+  .doc { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+    text-decoration: none; background: var(--page); }
+  .doc:hover { border-color: var(--text-muted); }
+  .doc .icon { width: 26px; height: 26px; border-radius: 6px; background: var(--surface-1);
+    border: 1px solid var(--border); display: grid; place-items: center;
+    font-size: 9px; font-weight: 700; color: var(--brand); flex: none; }
+  .doc .kind { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+  button.add-doc { margin-top: 8px; width: 100%; font: inherit; font-size: 12.5px; font-weight: 600;
+    color: var(--brand); background: none; border: 1px dashed var(--brand);
+    border-radius: 8px; padding: 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="tool">
+  <aside class="panel panel-left">
+    <h2>Jobs</h2>
+    <p class="sub" id="scope-line"></p>
+    <div class="searchbox">
+      <input type="search" id="q" placeholder="Search job #, customer, keyword…" aria-label="Search jobs">
+      <div class="row">
+        <select id="f-status" aria-label="Filter by status">
+          <option value="all">All statuses</option>
+          <option value="In Progress">In progress</option>
+          <option value="Scheduled">Scheduled</option>
+          <option value="Completed">Completed</option>
+        </select>
+        <select id="f-client" aria-label="Filter by customer"><option value="all">All customers</option></select>
+      </div>
+    </div>
+    <div class="result-count" id="count"></div>
+    <div id="job-list"></div>
+  </aside>
+
+  <main id="map-cell"><div id="bigmap"></div></main>
+
+  <aside class="panel panel-right" id="detail-panel">
+    <h2>Job details</h2>
+    <div class="detail-empty" id="detail-empty">Select a job from the list or the map to see its
+      details, notes, and documents.</div>
+    <div class="detail" id="detail" hidden></div>
+  </aside>
+</div>
+
+<div id="tooltip" role="status"></div>
+<div id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data.js"></script>
+<script>
+"use strict";
+
+/* ---------- "Auth" (demo only) ---------- */
+const user = renderP3Header("map");
+if (!user) location.replace("index.html");
+const userId = new URLSearchParams(location.search).get("user");
+const userJobs = user && user.manager ? JOBS : JOBS.filter(j => j.pm === userId);
+document.getElementById("scope-line").textContent = user && user.manager
+  ? "All PMs · " + userJobs.length + " jobs"
+  : (user ? user.name : "") + "’s jobs only · " + userJobs.length + " jobs";
+
+const darkMode = window.matchMedia("(prefers-color-scheme: dark)");
+const mode = () => (darkMode.matches ? "dark" : "light");
+const clientFill = c => (CLIENT_COLORS[c] ? CLIENT_COLORS[c][mode()] : OTHER_COLOR[mode()]);
+
+/* ---------- Toast ---------- */
+const toast = document.getElementById("toast");
+let toastTimer = null;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+/* ---------- Tooltip ---------- */
+const tooltip = document.getElementById("tooltip");
+function showTooltip(x, y, lines) {
+  tooltip.replaceChildren();
+  lines.forEach(([cls, text]) => {
+    const d = document.createElement("div");
+    d.className = cls; d.textContent = text;
+    tooltip.appendChild(d);
+  });
+  tooltip.style.display = "block";
+  const pad = 14, r = tooltip.getBoundingClientRect();
+  tooltip.style.left = Math.min(x + pad, window.innerWidth - r.width - 8) + "px";
+  tooltip.style.top  = Math.min(y + pad, window.innerHeight - r.height - 8) + "px";
+}
+function hideTooltip() { tooltip.style.display = "none"; }
+
+/* ---------- Search & filters ---------- */
+const elQ = document.getElementById("q");
+const elStatus = document.getElementById("f-status");
+const elClient = document.getElementById("f-client");
+[...new Set(userJobs.map(j => j.client))].sort().forEach(c => {
+  const o = document.createElement("option"); o.value = c; o.textContent = c;
+  elClient.appendChild(o);
+});
+
+function visibleJobs() {
+  const q = elQ.value.trim().toLowerCase();
+  const terms = q ? q.split(/\s+/) : [];
+  return userJobs.filter(j => {
+    if (elStatus.value !== "all" && j.status !== elStatus.value) return false;
+    if (elClient.value !== "all" && j.client !== elClient.value) return false;
+    if (terms.length) {
+      const hay = [j.id, j.client, j.desc, j.city, j.status,
+                   PMS[j.pm] ? PMS[j.pm].name : j.pm].join(" ").toLowerCase();
+      if (!terms.every(t => hay.includes(t))) return false;
+    }
+    return true;
+  });
+}
+
+/* ---------- Map ---------- */
+let map, markerLayer;
+const markersById = new Map();
+const hasLeaflet = () => typeof L !== "undefined";
+function initMap() {
+  if (!hasLeaflet()) {
+    const note = document.createElement("p");
+    note.className = "map-note";
+    note.textContent = "Map unavailable — the map CDN could not be reached. Use the list on the left to browse jobs.";
+    document.getElementById("bigmap").replaceWith(note);
+    return;
+  }
+  map = L.map("bigmap").setView([37.7, -122.2], 9);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19, subdomains: "abcd",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+}
+
+function baseStyle(j) {
+  return { radius: 8, weight: 3, color: STATUS_BORDER[j.status] || "#898781",
+           fillColor: clientFill(j.client), fillOpacity: 1 };
+}
+function selectedStyle(j) {
+  return { radius: 12, weight: 4, color: STATUS_BORDER[j.status] || "#898781",
+           fillColor: clientFill(j.client), fillOpacity: 1 };
+}
+
+function renderMap(jobs, fit) {
+  if (!hasLeaflet()) return;
+  markerLayer.clearLayers();
+  markersById.clear();
+  const pts = [];
+  jobs.forEach(j => {
+    pts.push([j.lat, j.lng]);
+    const m = L.circleMarker([j.lat, j.lng], j.id === selectedId ? selectedStyle(j) : baseStyle(j));
+    m.on("mouseover mousemove", e => {
+      const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
+      showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, [
+        ["tt-value", j.id + " — " + j.client],
+        ["tt-label", j.desc],
+        ["tt-extra", j.status + " · " + j.city + " · PM " + pmName + " · " + j.date]
+      ]);
+    });
+    m.on("mouseout", hideTooltip);
+    m.on("click", () => selectJob(j.id, "map"));
+    m.addTo(markerLayer);
+    markersById.set(j.id, m);
+  });
+  if (fit && pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 12 });
+}
+
+/* ---------- Left list ---------- */
+function renderList(jobs) {
+  const list = document.getElementById("job-list");
+  list.replaceChildren();
+  const sorted = [...jobs].sort((a, b) => b.date.localeCompare(a.date));
+  document.getElementById("count").textContent =
+    sorted.length + " job" + (sorted.length !== 1 ? "s" : "") + " · newest first";
+  sorted.forEach(j => {
+    const b = document.createElement("button");
+    b.className = "job-item" + (j.id === selectedId ? " selected" : "");
+    b.dataset.id = j.id;
+    const l1 = document.createElement("div"); l1.className = "l1";
+    const jid = document.createElement("span"); jid.className = "jid"; jid.textContent = j.id;
+    const cl = document.createElement("span"); cl.className = "client"; cl.textContent = j.client;
+    l1.append(jid, cl);
+    const desc = document.createElement("div"); desc.className = "desc"; desc.textContent = j.desc;
+    const meta = document.createElement("div"); meta.className = "meta";
+    const ring = document.createElement("span");
+    ring.className = "key-ring";
+    ring.style.borderColor = STATUS_BORDER[j.status] || "#898781";
+    ring.style.background = clientFill(j.client);
+    meta.append(ring, document.createTextNode(j.status + " · " + j.city + " · " + j.date));
+    b.append(l1, desc, meta);
+    b.addEventListener("click", () => selectJob(j.id, "list"));
+    list.appendChild(b);
+  });
+  if (!sorted.length) {
+    const p = document.createElement("p");
+    p.className = "sub"; p.style.padding = "10px 14px";
+    p.textContent = "No jobs match this search.";
+    list.appendChild(p);
+  }
+}
+
+/* ---------- Right detail panel ---------- */
+const NOTES = {};   // in-memory only — demo
+let selectedId = null;
+
+function renderDetail(j) {
+  const empty = document.getElementById("detail-empty");
+  const det = document.getElementById("detail");
+  if (!j) { empty.hidden = false; det.hidden = true; return; }
+  empty.hidden = true; det.hidden = false;
+  det.replaceChildren();
+
+  const jid = document.createElement("div"); jid.className = "jid"; jid.textContent = j.id;
+  const cline = document.createElement("div"); cline.className = "client-line";
+  const dot = document.createElement("span"); dot.className = "key-dot";
+  dot.style.background = clientFill(j.client);
+  const chip = document.createElement("span"); chip.className = "status-chip";
+  const ring = document.createElement("span");
+  ring.className = "key-ring";
+  ring.style.borderColor = STATUS_BORDER[j.status] || "#898781";
+  ring.style.background = clientFill(j.client);
+  chip.append(ring, document.createTextNode(j.status));
+  cline.append(dot, document.createTextNode(j.client), chip);
+  det.append(jid, cline);
+
+  const dl = document.createElement("dl"); dl.className = "fieldlist";
+  const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
+  [["Description", j.desc], ["PM", pmName], ["City", j.city], ["Start date", j.date],
+   ["Coordinates", j.lat.toFixed(4) + ", " + j.lng.toFixed(4)]].forEach(([k, v]) => {
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = v;
+    dl.append(dt, dd);
+  });
+  det.appendChild(dl);
+
+  const h3n = document.createElement("h3"); h3n.textContent = "Notes";
+  const ta = document.createElement("textarea");
+  ta.className = "notes"; ta.placeholder = "Add a note about this job…";
+  ta.value = NOTES[j.id] || "";
+  ta.addEventListener("input", () => { NOTES[j.id] = ta.value; });
+  const hint = document.createElement("div"); hint.className = "notes-hint";
+  hint.textContent = "Demo — notes are kept for this browser session only.";
+  det.append(h3n, ta, hint);
+
+  const h3d = document.createElement("h3"); h3d.textContent = "Documents";
+  det.appendChild(h3d);
+  const docs = document.createElement("div"); docs.className = "docs";
+  docsFor(j).forEach(d => {
+    const a = document.createElement("a");
+    a.className = "doc"; a.href = "#";
+    const icon = document.createElement("span"); icon.className = "icon";
+    const ext = d.label.includes(".") ? d.label.split(".").pop().toUpperCase() : null;
+    icon.textContent = d.kind === "Photos" ? "IMG" : (ext || "DOC").slice(0, 4);
+    const name = document.createElement("span"); name.textContent = d.label;
+    const kind = document.createElement("span"); kind.className = "kind"; kind.textContent = d.kind;
+    a.append(icon, name, kind);
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      showToast("Demo — document links are placeholders and don’t open anything.");
+    });
+    docs.appendChild(a);
+  });
+  det.appendChild(docs);
+  const add = document.createElement("button");
+  add.className = "add-doc"; add.type = "button"; add.textContent = "+ Add document";
+  add.addEventListener("click", () => showToast("Demo — uploads aren’t wired up in this mockup."));
+  det.appendChild(add);
+}
+
+function selectJob(id, source) {
+  const j = userJobs.find(x => x.id === id) || null;
+  const prev = selectedId;
+  selectedId = j ? id : null;
+  if (hasLeaflet()) {
+    if (prev && markersById.has(prev)) {
+      const pj = userJobs.find(x => x.id === prev);
+      if (pj) markersById.get(prev).setStyle(baseStyle(pj)).setRadius(8);
+    }
+    if (j && markersById.has(id)) {
+      const m = markersById.get(id);
+      m.setStyle(selectedStyle(j)).setRadius(12);
+      m.bringToFront();
+      if (source !== "map") map.panTo([j.lat, j.lng]);
+    }
+  }
+  document.querySelectorAll(".job-item").forEach(el =>
+    el.classList.toggle("selected", el.dataset.id === selectedId));
+  renderDetail(j);
+}
+
+/* ---------- Wire up ---------- */
+function renderAll(fitMap) {
+  const jobs = visibleJobs();
+  if (selectedId && !jobs.some(j => j.id === selectedId)) selectJob(null);
+  renderList(jobs);
+  renderMap(jobs, fitMap);
+}
+elQ.addEventListener("input", () => renderAll(false));
+elStatus.addEventListener("change", () => renderAll(false));
+elClient.addEventListener("change", () => renderAll(false));
+darkMode.addEventListener("change", () => { renderAll(false); renderDetail(userJobs.find(x => x.id === selectedId) || null); });
+initMap();
+renderAll(true);
+</script>
+</body>
+</html>
