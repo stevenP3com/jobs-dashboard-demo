@@ -140,6 +140,7 @@
 <div id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="ca-boundary.js"></script>
 <script src="data.js"></script>
 <script>
 "use strict";
@@ -234,12 +235,16 @@ function initMap() {
     document.getElementById("bigmap").replaceWith(note);
     return;
   }
-  map = L.map("bigmap", { zoomControl: false }).setView([37.7, -122.2], 9);
+  map = L.map("bigmap", {
+    zoomControl: false, minZoom: 5.4,
+    maxBounds: [[31.6, -126.5], [42.8, -112.6]], maxBoundsViscosity: 1.0
+  }).setView([37.7, -122.2], 9);
   L.control.zoom({ position: "bottomright" }).addTo(map);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
     maxZoom: 19, subdomains: "abcd",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
   }).addTo(map);
+  addCaliforniaMask(map);
   markerLayer = L.layerGroup().addTo(map);
 }
 
@@ -357,7 +362,7 @@ function renderList(jobs) {
 }
 
 /* ---------- Details panel (opens on select, toggles closed) ---------- */
-const NOTES = {};   // in-memory only — demo
+const NOTES = {};   // session-scoped note storage
 let selectedId = null;
 const detailPanel = document.getElementById("detail-panel");
 document.getElementById("close-detail").addEventListener("click", () => selectJob(null));
@@ -398,7 +403,7 @@ function renderDetail(j) {
   ta.value = NOTES[j.id] || "";
   ta.addEventListener("input", () => { NOTES[j.id] = ta.value; });
   const hint = document.createElement("div"); hint.className = "notes-hint";
-  hint.textContent = "Demo — notes are kept for this browser session only.";
+  hint.textContent = "Notes are saved for this browser session.";
   det.append(h3n, ta, hint);
 
   const h3d = document.createElement("h3"); h3d.textContent = "Documents";
@@ -415,14 +420,14 @@ function renderDetail(j) {
     a.append(icon, name, kind);
     a.addEventListener("click", e => {
       e.preventDefault();
-      showToast("Demo — document links are placeholders and don’t open anything.");
+      showToast("Document preview isn’t available in this demo.");
     });
     docs.appendChild(a);
   });
   det.appendChild(docs);
   const add = document.createElement("button");
   add.className = "add-doc"; add.type = "button"; add.textContent = "+ Add document";
-  add.addEventListener("click", () => showToast("Demo — uploads aren’t wired up in this mockup."));
+  add.addEventListener("click", () => showToast("Uploads aren’t available in this demo."));
   det.appendChild(add);
 }
 
