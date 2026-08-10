@@ -37,7 +37,7 @@ const JOBS = [
   {id:"J-1005", client:"Harborlink Networks",    pm:"avery",  desc:"Node cutover & acceptance",        status:"Completed",   date:"2025-11-13", city:"Hayward",       lat:37.6688, lng:-122.0810},
   {id:"J-1006", client:"Harborlink Networks",    pm:"avery",  desc:"Ring B bidirectional testing",     status:"Completed",   date:"2026-02-06", city:"Fremont",       lat:37.5483, lng:-121.9886},
   {id:"J-1007", client:"Harborlink Networks",    pm:"avery",  desc:"FTTx drop rehab, phase 1",         status:"In Progress", date:"2026-06-15", city:"San Jose",      lat:37.3352, lng:-121.8931},
-  {id:"J-1008", client:"Harborlink Networks",    pm:"avery",  desc:"FTTx drop rehab, phase 2",         status:"In Progress", date:"2026-07-06", city:"Santa Clara",   lat:37.3541, lng:-121.9552},
+  {id:"J-1008", client:"Harborlink Networks",    pm:"avery",  desc:"FTTx drop rehab, phase 2",         status:"In Progress", date:"2026-07-06", city:"San Jose",      lat:37.3352, lng:-121.8931},
   {id:"J-1009", client:"Harborlink Networks",    pm:"avery",  desc:"Ring C characterization",          status:"Scheduled",   date:"2026-08-17", city:"Berkeley",      lat:37.8715, lng:-122.2730},
 
   {id:"J-1010", client:"CityGrid Transit",       pm:"dana",   desc:"Station fiber survey — Line 1",    status:"Completed",   date:"2025-01-27", city:"San Francisco", lat:37.7793, lng:-122.4139},
@@ -59,7 +59,7 @@ const JOBS = [
   {id:"J-1024", client:"Bayline Communications", pm:"marcus", desc:"Campus backbone install",          status:"Completed",   date:"2025-05-06", city:"Palo Alto",     lat:37.4419, lng:-122.1630},
   {id:"J-1025", client:"Bayline Communications", pm:"marcus", desc:"Dark fiber audit — 96ct",          status:"Completed",   date:"2025-08-11", city:"Redwood City",  lat:37.4852, lng:-122.2364},
   {id:"J-1026", client:"Bayline Communications", pm:"marcus", desc:"Colo cross-connect buildout",      status:"Completed",   date:"2025-12-09", city:"Santa Clara",   lat:37.3688, lng:-121.9614},
-  {id:"J-1027", client:"Bayline Communications", pm:"marcus", desc:"Metro ring splice & test",         status:"In Progress", date:"2026-07-01", city:"San Jose",      lat:37.3230, lng:-121.9000},
+  {id:"J-1027", client:"Bayline Communications", pm:"marcus", desc:"Metro ring splice & test",         status:"In Progress", date:"2026-07-01", city:"San Jose",      lat:37.3639, lng:-121.9289},
   {id:"J-1028", client:"Bayline Communications", pm:"marcus", desc:"Lateral to new MTU",               status:"Scheduled",   date:"2026-09-21", city:"Mountain View", lat:37.3861, lng:-122.0839},
 
   {id:"J-1029", client:"Summit Datacenters",     pm:"priya",  desc:"Meet-me room fiber plant",         status:"Completed",   date:"2025-04-29", city:"Santa Clara",   lat:37.3803, lng:-121.9731},
@@ -81,7 +81,7 @@ const JOBS = [
   {id:"J-1042", client:"Eastshore Logistics",    pm:"dana",   desc:"Gate automation comms",            status:"In Progress", date:"2026-06-01", city:"Oakland",       lat:37.7957, lng:-122.2792},
 
   {id:"J-1043", client:"Marina Point HOA",       pm:"dana",   desc:"Community FTTH phase 1",           status:"Completed",   date:"2025-12-15", city:"Alameda",       lat:37.7726, lng:-122.2833},
-  {id:"J-1044", client:"Marina Point HOA",       pm:"dana",   desc:"Community FTTH phase 2",           status:"Scheduled",   date:"2026-09-14", city:"Alameda",       lat:37.7737, lng:-122.2871},
+  {id:"J-1044", client:"Marina Point HOA",       pm:"dana",   desc:"Community FTTH phase 2",           status:"Scheduled",   date:"2026-09-14", city:"Alameda",       lat:37.7726, lng:-122.2833},
 
   {id:"J-1045", client:"Delta Charter Schools",  pm:"dana",   desc:"School district WAN links",        status:"Completed",   date:"2026-04-13", city:"Antioch",       lat:37.9857, lng:-121.7960},
 
@@ -132,14 +132,27 @@ function renderP3Header(activeTab) {
   const u = document.createElement("div");
   u.className = "p3-user";
   if (user) {
-    u.append(document.createTextNode(user.name + " · " + user.role + " — "));
+    const who = document.createElement("span");
+    who.className = "p3-user-name";
+    who.textContent = user.name + " · " + user.role + " — ";
     const out = document.createElement("a");
     out.href = "index.html"; out.textContent = "sign out";
-    u.appendChild(out);
+    u.append(who, out);
   }
   header.appendChild(u);
   document.body.prepend(header);
   return user;
+}
+
+/* Group jobs that share the same coordinates (multiple jobs at one address). */
+function groupByLocation(jobs) {
+  const m = new Map();
+  jobs.forEach(j => {
+    const k = j.lat.toFixed(5) + "," + j.lng.toFixed(5);
+    if (!m.has(k)) m.set(k, { key: k, lat: j.lat, lng: j.lng, jobs: [] });
+    m.get(k).jobs.push(j);
+  });
+  return [...m.values()];
 }
 
 /* Demo document placeholders for a job (links go nowhere on purpose). */
