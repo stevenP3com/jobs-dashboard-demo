@@ -23,4 +23,4 @@ Manager (Sam) sees everything plus a PM filter on the dashboard.
 Notes typed in the map tool live only in browser memory and reset on reload — a
 real version would save them to a database.
 
-https://stevenP3com.github.io/<repo>/
+https://stevenP3com.github.io/jobs-dashboard-demo/
