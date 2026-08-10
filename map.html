@@ -211,8 +211,8 @@ function visibleJobs() {
     if (elStatus.value !== "all" && j.status !== elStatus.value) return false;
     if (elClient.value !== "all" && j.client !== elClient.value) return false;
     if (terms.length) {
-      const hay = [j.id, j.client, j.desc, j.city, j.status,
-                   PMS[j.pm] ? PMS[j.pm].name : j.pm].join(" ").toLowerCase();
+      const hay = [j.job_number, j.bid_number, j.client, j.customer_pm, j.description,
+                   j.city, j.status, PMS[j.pm] ? PMS[j.pm].name : j.pm].join(" ").toLowerCase();
       if (!terms.every(t => hay.includes(t))) return false;
     }
     return true;
@@ -255,12 +255,23 @@ function selectedStyle(j) {
            fillColor: clientFill(j.client), fillOpacity: 1 };
 }
 
+function jobTooltipLines(j) {
+  const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
+  const lines = [
+    ["tt-value", j.job_number + " — " + j.client],
+    ["tt-label", j.description],
+    ["tt-extra", j.status + (j.pct_complete != null && j.status === "In Progress" ? " (" + j.pct_complete + "%)" : "") +
+                 " · " + j.city + " · PM " + pmName + " · " + j.date]
+  ];
+  return lines;
+}
+
 function multiPinIcon(g) {
   const fills = new Set(g.jobs.map(j => clientFill(j.client)));
   const fill = fills.size === 1 ? [...fills][0] : OTHER_COLOR[mode()];
   const borders = new Set(g.jobs.map(j => STATUS_BORDER[j.status] || "#898781"));
   const border = borders.size === 1 ? [...borders][0] : (mode() === "dark" ? "#ffffff" : "#0b0b0b");
-  const sel = g.jobs.some(j => j.id === selectedId);
+  const sel = g.jobs.some(j => j.job_number === selectedId);
   return L.divIcon({
     className: "", iconSize: [32, 32], iconAnchor: [16, 16],
     html: `<div class="multi-pin${sel ? " selected" : ""}" style="background:${fill};border-color:${border}">${g.jobs.length}</div>`
@@ -277,41 +288,53 @@ function openGroupChooser(g) {
   g.jobs.forEach(j => {
     const b = document.createElement("button");
     b.className = "popup-job"; b.type = "button";
-    const jid = document.createElement("span"); jid.className = "jid"; jid.textContent = j.id;
+    const jid = document.createElement("span"); jid.className = "jid"; jid.textContent = j.job_number;
     b.append(jid, document.createTextNode(j.client + " · " + j.status));
-    b.addEventListener("click", () => { map.closePopup(); selectJob(j.id, "map-group"); });
+    b.addEventListener("click", () => { map.closePopup(); selectJob(j.job_number, "map-group"); });
     div.appendChild(b);
   });
   L.popup({ offset: [0, -14] }).setLatLng([g.lat, g.lng]).setContent(div).openOn(map);
+}
+
+const routesById = new Map();
+function routeStyle(j, selected) {
+  return { color: clientFill(j.client), weight: selected ? 6 : 3.5,
+           opacity: selected ? 1 : 0.75 };
 }
 
 function renderMap(jobs, fit) {
   if (!hasLeaflet()) return;
   markerLayer.clearLayers();
   markersById.clear();
+  routesById.clear();
   const pts = [];
+  // Fiber run polylines first so pins draw above them
+  jobs.filter(j => j.route && j.route.length > 1).forEach(j => {
+    const line = L.polyline(j.route, routeStyle(j, j.job_number === selectedId));
+    line.on("mouseover mousemove", e =>
+      showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, jobTooltipLines(j)));
+    line.on("mouseout", hideTooltip);
+    line.on("click", () => selectJob(j.job_number, "map"));
+    line.addTo(markerLayer);
+    routesById.set(j.job_number, { line, job: j });
+    j.route.forEach(p => pts.push(p));
+  });
   groupByLocation(jobs).forEach(g => {
     pts.push([g.lat, g.lng]);
     if (g.jobs.length === 1) {
       const j = g.jobs[0];
-      const m = L.circleMarker([j.lat, j.lng], j.id === selectedId ? selectedStyle(j) : baseStyle(j));
-      m.on("mouseover mousemove", e => {
-        const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
-        showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, [
-          ["tt-value", j.id + " — " + j.client],
-          ["tt-label", j.desc],
-          ["tt-extra", j.status + " · " + j.city + " · PM " + pmName + " · " + j.date]
-        ]);
-      });
+      const m = L.circleMarker([j.lat, j.lng], j.job_number === selectedId ? selectedStyle(j) : baseStyle(j));
+      m.on("mouseover mousemove", e =>
+        showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, jobTooltipLines(j)));
       m.on("mouseout", hideTooltip);
-      m.on("click", () => selectJob(j.id, "map"));   // clicking again toggles closed
+      m.on("click", () => selectJob(j.job_number, "map"));   // clicking again toggles closed
       m.addTo(markerLayer);
-      markersById.set(j.id, { kind: "single", marker: m, job: j });
+      markersById.set(j.job_number, { kind: "single", marker: m, job: j });
     } else {
       const m = L.marker([g.lat, g.lng], { icon: multiPinIcon(g) });
       m.on("mouseover mousemove", e => {
         const lines = [["tt-value", g.jobs.length + " jobs at this location"]];
-        g.jobs.slice(0, 4).forEach(j => lines.push(["tt-label", j.id + " — " + j.client + " · " + j.status]));
+        g.jobs.slice(0, 4).forEach(j => lines.push(["tt-label", j.job_number + " — " + j.client + " · " + j.status]));
         if (g.jobs.length > 4) lines.push(["tt-extra", "+ " + (g.jobs.length - 4) + " more…"]);
         lines.push(["tt-extra", "Click to pick a job"]);
         showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, lines);
@@ -319,7 +342,7 @@ function renderMap(jobs, fit) {
       m.on("mouseout", hideTooltip);
       m.on("click", () => { hideTooltip(); openGroupChooser(g); });
       m.addTo(markerLayer);
-      g.jobs.forEach(j => markersById.set(j.id, { kind: "multi", marker: m, group: g }));
+      g.jobs.forEach(j => markersById.set(j.job_number, { kind: "multi", marker: m, group: g }));
     }
   });
   if (fit && pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 12 });
@@ -334,21 +357,22 @@ function renderList(jobs) {
     sorted.length + " job" + (sorted.length !== 1 ? "s" : "") + " · newest first";
   sorted.forEach(j => {
     const b = document.createElement("button");
-    b.className = "job-item" + (j.id === selectedId ? " selected" : "");
-    b.dataset.id = j.id;
+    b.className = "job-item" + (j.job_number === selectedId ? " selected" : "");
+    b.dataset.id = j.job_number;
     const l1 = document.createElement("div"); l1.className = "l1";
-    const jid = document.createElement("span"); jid.className = "jid"; jid.textContent = j.id;
+    const jid = document.createElement("span"); jid.className = "jid"; jid.textContent = j.job_number;
     const cl = document.createElement("span"); cl.className = "client"; cl.textContent = j.client;
     l1.append(jid, cl);
-    const desc = document.createElement("div"); desc.className = "desc"; desc.textContent = j.desc;
+    const desc = document.createElement("div"); desc.className = "desc"; desc.textContent = j.description;
     const meta = document.createElement("div"); meta.className = "meta";
     const ring = document.createElement("span");
     ring.className = "key-ring";
     ring.style.borderColor = STATUS_BORDER[j.status] || "#898781";
     ring.style.background = clientFill(j.client);
-    meta.append(ring, document.createTextNode(j.status + " · " + j.city + " · " + j.date));
+    const pct = j.status === "In Progress" && j.pct_complete != null ? " · " + j.pct_complete + "%" : "";
+    meta.append(ring, document.createTextNode(j.status + pct + " · " + j.city + " · " + j.date));
     b.append(l1, desc, meta);
-    b.addEventListener("click", () => selectJob(j.id, "list"));   // clicking again toggles closed
+    b.addEventListener("click", () => selectJob(j.job_number, "list"));   // clicking again toggles closed
     list.appendChild(b);
   });
   if (!sorted.length) {
@@ -372,7 +396,7 @@ function renderDetail(j) {
   det.replaceChildren();
   if (!j) return;
 
-  const jid = document.createElement("div"); jid.className = "jid"; jid.textContent = j.id;
+  const jid = document.createElement("div"); jid.className = "jid"; jid.textContent = j.job_number;
   const cline = document.createElement("div"); cline.className = "client-line";
   const dot = document.createElement("span"); dot.className = "key-dot";
   dot.style.background = clientFill(j.client);
@@ -383,12 +407,38 @@ function renderDetail(j) {
   ring.style.background = clientFill(j.client);
   chip.append(ring, document.createTextNode(j.status));
   cline.append(dot, document.createTextNode(j.client), chip);
+  const copy = document.createElement("button");
+  copy.className = "btn-sm"; copy.type = "button"; copy.textContent = "Copy link";
+  copy.addEventListener("click", () => {
+    navigator.clipboard.writeText(location.href)
+      .then(() => showToast("Job link copied to clipboard."))
+      .catch(() => showToast("Copy this page’s URL to share the job."));
+  });
+  cline.appendChild(copy);
   det.append(jid, cline);
+
+  if (j.pct_complete != null) {
+    const wrap = document.createElement("div"); wrap.className = "pct-cell";
+    wrap.style.marginBottom = "10px";
+    const bar = document.createElement("span"); bar.className = "progress";
+    const fill = document.createElement("span"); fill.className = "fill";
+    fill.style.width = j.pct_complete + "%";
+    bar.appendChild(fill);
+    const num = document.createElement("span"); num.className = "num";
+    num.textContent = j.pct_complete + "%";
+    wrap.append(bar, num);
+    det.appendChild(wrap);
+  }
 
   const dl = document.createElement("dl"); dl.className = "fieldlist";
   const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
-  [["Description", j.desc], ["PM", pmName], ["City", j.city], ["Start date", j.date],
-   ["Coordinates", j.lat.toFixed(4) + ", " + j.lng.toFixed(4)]].forEach(([k, v]) => {
+  [["Description", j.description], ["Phase 3 PM", pmName], ["Customer PM", j.customer_pm],
+   ["Bid #", j.bid_number], ["Contract", fmtMoney(j.contract_amount) + (j.contract_amount == null ? " (T&M)" : "")],
+   ["Est. cost", fmtMoney(j.estimated_job_cost)],
+   ["Prevailing wage", j.prevailing_wage ? "Yes" : "No"],
+   ["City", j.city], ["Start date", j.date],
+   ["Coordinates", j.lat.toFixed(4) + ", " + j.lng.toFixed(4)],
+   ["Latest comment", j.latest_comment || "—"]].forEach(([k, v]) => {
     const dt = document.createElement("dt"); dt.textContent = k;
     const dd = document.createElement("dd"); dd.textContent = v;
     dl.append(dt, dd);
@@ -398,8 +448,8 @@ function renderDetail(j) {
   const h3n = document.createElement("h3"); h3n.textContent = "Notes";
   const ta = document.createElement("textarea");
   ta.className = "notes"; ta.placeholder = "Add a note about this job…";
-  ta.value = NOTES[j.id] || "";
-  ta.addEventListener("input", () => { NOTES[j.id] = ta.value; });
+  ta.value = NOTES[j.job_number] || "";
+  ta.addEventListener("input", () => { NOTES[j.job_number] = ta.value; });
   const hint = document.createElement("div"); hint.className = "notes-hint";
   hint.textContent = "Notes are saved for this browser session.";
   det.append(h3n, ta, hint);
@@ -429,9 +479,15 @@ function renderDetail(j) {
   det.appendChild(add);
 }
 
+function syncUrl() {
+  const params = new URLSearchParams(location.search);
+  if (selectedId) params.set("job", selectedId); else params.delete("job");
+  history.replaceState(null, "", location.pathname + "?" + params.toString());
+}
+
 function selectJob(id, source) {
   if (id !== null && id === selectedId) id = null;   // clicking the selected job closes it
-  const j = id ? (userJobs.find(x => x.id === id) || null) : null;
+  const j = id ? (userJobs.find(x => x.job_number === id) || null) : null;
   const prev = selectedId;
   selectedId = j ? id : null;
   if (hasLeaflet()) {
@@ -447,24 +503,34 @@ function selectJob(id, source) {
         if (pin) pin.classList.toggle("selected", selected);
       }
     };
-    if (prev && markersById.has(prev)) {
-      const pj = userJobs.find(x => x.id === prev);
-      if (pj) setPinState(markersById.get(prev), pj, false);
+    const setRouteState = (jobNum, selected) => {
+      const r = routesById.get(jobNum);
+      if (r) {
+        r.line.setStyle(routeStyle(r.job, selected));
+        if (selected) r.line.bringToFront();
+      }
+    };
+    if (prev) {
+      const pj = userJobs.find(x => x.job_number === prev);
+      if (pj && markersById.has(prev)) setPinState(markersById.get(prev), pj, false);
+      setRouteState(prev, false);
     }
-    if (j && markersById.has(selectedId)) {
-      setPinState(markersById.get(selectedId), j, true);
+    if (j) {
+      if (markersById.has(selectedId)) setPinState(markersById.get(selectedId), j, true);
+      setRouteState(selectedId, true);
       if (source !== "map" && source !== "map-group") map.panTo([j.lat, j.lng]);
     }
   }
   document.querySelectorAll(".job-item").forEach(el =>
     el.classList.toggle("selected", el.dataset.id === selectedId));
   renderDetail(j);
+  syncUrl();
 }
 
 /* ---------- Wire up ---------- */
 function renderAll(fitMap) {
   const jobs = visibleJobs();
-  if (selectedId && !jobs.some(j => j.id === selectedId)) selectJob(null);
+  if (selectedId && !jobs.some(j => j.job_number === selectedId)) selectJob(null);
   renderList(jobs);
   renderMap(jobs, fitMap);
 }
@@ -473,10 +539,18 @@ elStatus.addEventListener("change", () => renderAll(false));
 elClient.addEventListener("change", () => renderAll(false));
 darkMode.addEventListener("change", () => {
   renderAll(false);
-  renderDetail(userJobs.find(x => x.id === selectedId) || null);
+  renderDetail(userJobs.find(x => x.job_number === selectedId) || null);
 });
 initMap();
 renderAll(true);
+
+/* Deep link: map.html?user=…&job=P3-26-002 opens that job directly */
+const linkedJob = new URLSearchParams(location.search).get("job");
+if (linkedJob && userJobs.some(j => j.job_number === linkedJob)) {
+  selectJob(linkedJob, "link");
+  const j = userJobs.find(x => x.job_number === linkedJob);
+  if (hasLeaflet() && j) map.setView([j.lat, j.lng], 13);
+}
 </script>
 </body>
 </html>

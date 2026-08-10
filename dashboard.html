@@ -38,6 +38,7 @@
     <div class="tile"><div class="label">In progress</div><div class="value" id="k-active">–</div><div class="hint">crews currently on site</div></div>
     <div class="tile"><div class="label">Scheduled</div><div class="value" id="k-sched">–</div><div class="hint">not yet started</div></div>
     <div class="tile"><div class="label">Completed</div><div class="value" id="k-done">–</div><div class="hint">in selected range</div></div>
+    <div class="tile"><div class="label">Contract value</div><div class="value" id="k-value">–</div><div class="hint" id="k-value-hint">jobs shown</div></div>
   </div>
 
   <div class="grid2">
@@ -56,12 +57,23 @@
   </div>
 
   <div class="card">
-    <h2>All jobs</h2>
+    <h2>Contract value by client</h2>
+    <p class="sub" id="money-sub">Total contract amounts for the jobs shown</p>
+    <div id="money-chart" role="img" aria-label="Row chart of contract value by client"></div>
+    <div class="chart-axis"><span></span><span class="rule">contract value</span><span></span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>All jobs</h2>
+      <span class="spacer"></span>
+      <button class="btn-sm" id="export-csv" type="button">Export CSV</button>
+    </div>
     <p class="sub">Type in a column box to filter that column; boxes combine with the filters above</p>
     <div style="overflow-x:auto">
       <table>
         <thead>
-          <tr><th>Job</th><th>Client</th><th>Description</th><th>Status</th><th>PM</th><th>City</th><th>Start date</th></tr>
+          <tr><th>Job #</th><th>Client</th><th>Description</th><th>Status</th><th>%</th><th>PM</th><th>City</th><th>Start date</th><th>Contract</th></tr>
           <tr class="col-filters" id="col-filters"></tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -164,6 +176,12 @@ function renderTiles(jobs) {
   document.getElementById("k-active").textContent = by("In Progress");
   document.getElementById("k-sched").textContent = by("Scheduled");
   document.getElementById("k-done").textContent = by("Completed");
+  const priced = jobs.filter(j => j.contract_amount != null);
+  const tbd = jobs.length - priced.length;
+  document.getElementById("k-value").textContent =
+    fmtMoneyCompact(priced.reduce((s, j) => s + j.contract_amount, 0));
+  document.getElementById("k-value-hint").textContent =
+    tbd ? "excludes " + tbd + " T&M/TBD job" + (tbd > 1 ? "s" : "") : "jobs shown";
 }
 
 /* ---------- Tooltip ---------- */
@@ -221,6 +239,60 @@ function renderChart(jobs) {
                      ["tt-label", r.other ? "Clients with fewer than " + SMALL_CLIENT_THRESHOLD + " jobs" : r.client],
                      ["tt-extra", pct + "% of jobs shown"]];
       if (r.other) lines.push(["tt-extra", r.other.map(c => `${c.client} (${c.n})`).join(" · ")]);
+      const rect = row.getBoundingClientRect();
+      showTooltip(e && e.clientX ? e.clientX : rect.right - 60, e && e.clientY ? e.clientY : rect.top, lines);
+    };
+    row.addEventListener("pointermove", tip);
+    row.addEventListener("pointerleave", hideTooltip);
+    row.addEventListener("focus", () => tip(null));
+    row.addEventListener("blur", hideTooltip);
+    chart.appendChild(row);
+  });
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "sub";
+    empty.textContent = "No jobs match the current filters.";
+    chart.appendChild(empty);
+  }
+}
+
+/* ---------- Contract value by client ---------- */
+function renderMoneyChart(jobs) {
+  const sums = new Map(), tbdBy = new Map();
+  jobs.forEach(j => {
+    const key = namedClients.includes(j.client) ? j.client : "__other__";
+    if (j.contract_amount == null) tbdBy.set(key, (tbdBy.get(key) || 0) + 1);
+    else sums.set(key, (sums.get(key) || 0) + j.contract_amount);
+  });
+  const rows = namedClients.filter(c => sums.has(c) || tbdBy.has(c))
+    .map(c => ({ label: c, key: c, v: sums.get(c) || 0 }))
+    .sort((a, b) => b.v - a.v);
+  if (sums.has("__other__") || tbdBy.has("__other__")) {
+    rows.push({ label: "Other clients", key: "__other__", v: sums.get("__other__") || 0, other: true });
+  }
+  const max = Math.max(1, ...rows.map(r => r.v));
+  const total = rows.reduce((s, r) => s + r.v, 0) || 1;
+  const chart = document.getElementById("money-chart");
+  chart.replaceChildren();
+  rows.forEach(r => {
+    const row = document.createElement("div");
+    row.className = "bar-row"; row.tabIndex = 0;
+    const label = document.createElement("span");
+    label.className = "bar-label"; label.textContent = r.label; label.title = r.label;
+    const track = document.createElement("div"); track.className = "bar-track";
+    const bar = document.createElement("div");
+    bar.className = "bar" + (r.other ? " other" : "");
+    bar.style.width = (r.v / max * 100) + "%";
+    track.appendChild(bar);
+    const val = document.createElement("span");
+    val.className = "bar-value"; val.textContent = fmtMoneyCompact(r.v);
+    row.append(label, track, val);
+    const tip = e => {
+      const lines = [["tt-value", fmtMoney(r.v)],
+                     ["tt-label", r.label],
+                     ["tt-extra", Math.round(r.v / total * 100) + "% of contract value shown"]];
+      const tbd = tbdBy.get(r.key);
+      if (tbd) lines.push(["tt-extra", tbd + " T&M/TBD job" + (tbd > 1 ? "s" : "") + " not included"]);
       const rect = row.getBoundingClientRect();
       showTooltip(e && e.clientX ? e.clientX : rect.right - 60, e && e.clientY ? e.clientY : rect.top, lines);
     };
@@ -297,10 +369,10 @@ function renderLegend(jobs) {
 function jobPopupContent(j) {
   const div = document.createElement("div");
   const t = document.createElement("div"); t.className = "popup-title";
-  t.textContent = `${j.id} — ${j.client}`;
+  t.textContent = `${j.job_number} — ${j.client}`;
   div.appendChild(t);
   const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
-  [j.desc, `${j.status} · ${j.city}`, `PM: ${pmName}`, "Start: " + j.date].forEach(txt => {
+  [j.description, `${j.status} · ${j.city}`, `PM: ${pmName}`, "Start: " + j.date].forEach(txt => {
     const p = document.createElement("div"); p.className = "popup-line";
     p.textContent = txt; div.appendChild(p);
   });
@@ -349,12 +421,14 @@ function renderMap(jobs) {
 
 /* ---------- Table with per-column filters ---------- */
 const COLS = [
-  j => j.id, j => j.client, j => j.desc, j => j.status,
-  j => (PMS[j.pm] ? PMS[j.pm].name : j.pm), j => j.city, j => j.date
+  j => j.job_number, j => j.client, j => j.description, j => j.status,
+  j => (j.pct_complete == null ? "" : j.pct_complete),
+  j => (PMS[j.pm] ? PMS[j.pm].name : j.pm), j => j.city, j => j.date,
+  j => (j.contract_amount == null ? "TBD" : j.contract_amount)
 ];
 const colFilters = COLS.map(() => "");
 const filterRow = document.getElementById("col-filters");
-["Job", "Client", "Description", "Status", "PM", "City", "Date"].forEach((name, i) => {
+["Job #", "Client", "Description", "Status", "%", "PM", "City", "Date", "Contract"].forEach((name, i) => {
   const th = document.createElement("th");
   const inp = document.createElement("input");
   inp.type = "text"; inp.placeholder = "Filter…";
@@ -375,8 +449,9 @@ function renderTable(jobs) {
   visible.forEach(j => {
     const tr = document.createElement("tr");
     const pmName = PMS[j.pm] ? PMS[j.pm].name : j.pm;
-    [["job-id", j.id], ["", j.client], ["", j.desc], ["status", ""],
-     ["", pmName], ["", j.city], ["date", j.date]].forEach(([cls, text]) => {
+    [["job-id", j.job_number], ["", j.client], ["", j.description], ["status", ""],
+     ["pct", ""], ["", pmName], ["", j.city], ["date", j.date],
+     ["date", fmtMoney(j.contract_amount)]].forEach(([cls, text]) => {
       const td = document.createElement("td");
       if (cls) td.className = cls;
       if (cls === "status") {
@@ -385,6 +460,19 @@ function renderTable(jobs) {
         ring.style.borderColor = STATUS_BORDER[j.status] || "#898781";
         ring.style.background = clientFill(j.client);
         td.append(ring, document.createTextNode(j.status));
+      } else if (cls === "pct") {
+        if (j.pct_complete == null) td.textContent = "—";
+        else {
+          const wrap = document.createElement("span"); wrap.className = "pct-cell";
+          const bar = document.createElement("span"); bar.className = "progress";
+          const fill = document.createElement("span"); fill.className = "fill";
+          fill.style.width = j.pct_complete + "%";
+          bar.appendChild(fill);
+          const num = document.createElement("span"); num.className = "num";
+          num.textContent = j.pct_complete + "%";
+          wrap.append(bar, num);
+          td.appendChild(wrap);
+        }
       } else td.textContent = text;
       tr.appendChild(td);
     });
@@ -393,17 +481,46 @@ function renderTable(jobs) {
   if (!visible.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
-    td.colSpan = 7; td.textContent = "No jobs match the current filters.";
+    td.colSpan = 9; td.textContent = "No jobs match the current filters.";
     tr.appendChild(td);
     body.appendChild(tr);
   }
 }
+
+/* ---------- CSV export of the filtered table ---------- */
+function exportCsv() {
+  const jobs = [...lastJobs]
+    .filter(j => COLS.every((get, i) => !colFilters[i] || String(get(j)).toLowerCase().includes(colFilters[i])))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const headers = ["job_number", "client", "description", "status", "pct_complete",
+    "p3_pm", "customer_pm", "bid_number", "city", "start_date",
+    "contract_amount", "estimated_job_cost", "prevailing_wage", "latest_comment", "lat", "lng"];
+  const esc = v => {
+    if (v == null) return "";
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [headers.join(",")];
+  jobs.forEach(j => lines.push([
+    j.job_number, j.client, j.description, j.status, j.pct_complete,
+    PMS[j.pm] ? PMS[j.pm].name : j.pm, j.customer_pm, j.bid_number, j.city, j.date,
+    j.contract_amount, j.estimated_job_cost, j.prevailing_wage, j.latest_comment, j.lat, j.lng
+  ].map(esc).join(",")));
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "jobs_export.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById("export-csv").addEventListener("click", exportCsv);
 
 /* ---------- Wire up ---------- */
 function renderAll() {
   const jobs = filteredJobs();
   renderTiles(jobs);
   renderChart(jobs);
+  renderMoneyChart(jobs);
   renderLegend(jobs);
   renderMap(jobs);
   renderTable(jobs);
