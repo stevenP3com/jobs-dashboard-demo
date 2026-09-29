@@ -5,6 +5,8 @@
    latest_comment, and optional route (fiber run polyline). */
 "use strict";
 
+const CARTO_KEY = "cb1_440p_1_a222665362eb58510e27d7fb"
+
 const PMS = {
   avery:  { name: "Avery Soto",  role: "Project Manager", manager: false },
   dana:   { name: "Dana Kim",    role: "Project Manager", manager: false },
